@@ -14,7 +14,7 @@ cd backend
 cargo install --locked watchexec-cli
 ```
 
-4. Create an env file in the root directory
+4. Create a .env file
 
 ```sh
 ROCKET_SECRET_KEY=
