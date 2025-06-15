@@ -2,15 +2,26 @@
 
 1. Make sure Rust and Cargo are installed
 
-2. Make sure watchexec is installed
+2. Select this directory
+
+```sh
+cd backend
+```
+
+3. Make sure watchexec is installed
 
 ```sh
 cargo install --locked watchexec-cli
 ```
 
-3. Run the server
+4. Create an env file in the root directory
 
 ```sh
-cd backend
+ROCKET_SECRET_KEY=
+```
+
+5. Run the server
+
+```sh
 watchexec -r -e rs -- cargo run
 ```

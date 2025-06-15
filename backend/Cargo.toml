@@ -1,7 +1,8 @@
 [package]
-name = "hello-rocket"
+name = "koi-backend"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rocket = "0.5.1"
+rocket = { version = "0.5.1", features = ["secrets"] }
+dotenvy = "0.15.7"
