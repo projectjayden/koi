@@ -6,7 +6,7 @@ use std::time::{ SystemTime, UNIX_EPOCH };
 
 #[get("/cookie")]
 fn cookie(cookies: &CookieJar<'_>) -> String {
-  let token_cookie = cookies.get_private("veryRealToken");
+  let token_cookie: Option<Cookie<'static>> = cookies.get_private("veryRealToken");
 
   match token_cookie {
     Some(token) => token.value().to_string(),
