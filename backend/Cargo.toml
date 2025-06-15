@@ -4,5 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rocket = { version = "0.5.1", features = ["secrets"] }
+rocket = { version = "0.5.1", features = ["secrets", "json"] }
+rocket_db_pools = { version = "0.2.0", features = ["sqlx_sqlite"] }
 dotenvy = "0.15.7"
+bcrypt = "0.17.0"
+zxcvbn = "3.1.0"
