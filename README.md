@@ -1,3 +1,3 @@
-# Shop'N
+# Koi
 
-Monorepo for Shop'N
+Monorepo for Koi
