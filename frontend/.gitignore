@@ -1,0 +1,42 @@
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.xcuserdatad/
+
+# Swift Package Manager
+.build/
+Packages/
+Package.resolved
+.swiftpm/xcode/package.xcworkspace/
+
+# Xcode automatic project files
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# Playground support
+timeline.xctimeline
+playground.xcworkspace
+
+# User & system files
+.DS_Store
+.idea/
+*.swp
+*.swo
+
+# SwiftPM cache
+.swiftpm/
+
+# Archive & debug
+*.xcarchive
+*.dSYM.zip
+*.dSYM
+
+# SPm
+Sources/**/.build/
+Tests/**/.build/
