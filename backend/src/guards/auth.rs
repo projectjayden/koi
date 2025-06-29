@@ -27,7 +27,11 @@ impl<'r> FromRequest<'r> for AuthenticatedUser {
           let last_login: u32 = row.try_get::<u32, _>("last_login").unwrap();
           let date_joined: u32 = row.try_get::<u32, _>("date_joined").unwrap();
           let store_id: Option<u32> = row.try_get::<Option<u32>, _>("store_id").unwrap();
-          Ok(User::new(id, uuid, email, password, last_login, date_joined, store_id))
+          let is_subscribed: u8 = row.try_get::<u8, _>("is_subscribed").unwrap();
+          let deal_alert_active: u8 = row.try_get::<u8, _>("deal_alert_active").unwrap();
+          let deal_alert_radius: u8 = row.try_get::<u8, _>("deal_alert_radius").unwrap();
+          let preferences: String = row.try_get::<String, _>("preferences").unwrap();
+          Ok(User::new(id, uuid, email, password, last_login, date_joined, store_id, is_subscribed, deal_alert_active, deal_alert_radius, preferences))
         })
         .ok();
 
