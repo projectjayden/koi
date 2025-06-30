@@ -1,10 +1,10 @@
-use crate::{ guards::auth::AuthenticatedUser };
 use rocket::{ http::{ CookieJar, Status }, serde::{ Deserialize, json::Json } };
 use crate::{ utils::{ db::Db, functions::create_cookie } };
-use rocket_db_pools::sqlx;
-use rocket_db_pools::Connection;
-use zxcvbn::zxcvbn;
+use crate::{ guards::auth::AuthenticatedUser };
 use bcrypt::{ hash, verify, DEFAULT_COST };
+use rocket_db_pools::Connection;
+use rocket_db_pools::sqlx;
+use zxcvbn::zxcvbn;
 
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
@@ -32,7 +32,7 @@ pub struct ChangePasswordData<'r> {
 /// - 401 (old password wrong)
 #[post("/change-password", format = "json", data = "<data>")]
 pub async fn change_password(mut db: Connection<Db>, cookies: &CookieJar<'_>, user: AuthenticatedUser, data: Json<ChangePasswordData<'_>>) -> Status {
-  if verify(data.old_password, &user.0.password).unwrap() == false {
+  if !verify(data.old_password, &user.0.password).unwrap() {
     return Status::Unauthorized;
   }
 
@@ -41,7 +41,8 @@ pub async fn change_password(mut db: Connection<Db>, cookies: &CookieJar<'_>, us
     return Status::BadRequest;
   }
 
-  sqlx::query("UPDATE users SET password = ? WHERE uuid = ?").bind(hash(data.new_password, DEFAULT_COST).unwrap()).bind(&user.0.uuid).execute(&mut **db).await.unwrap();
+  let new_hashed_password: String = hash(data.new_password, DEFAULT_COST).unwrap();
+  sqlx::query("UPDATE users SET password = ? WHERE uuid = ?").bind(new_hashed_password).bind(&user.0.uuid).execute(&mut **db).await.unwrap();
   cookies.add_private(create_cookie("auth_token", user.0.uuid.clone()));
 
   Status::Ok
