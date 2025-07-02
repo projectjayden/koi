@@ -3,6 +3,7 @@ extern crate rocket;
 
 use rocket_db_pools::Database;
 
+mod machine_learning;
 mod catchers;
 mod guards;
 mod models;
