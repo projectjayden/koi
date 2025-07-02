@@ -1,4 +1,4 @@
-use rocket::{ http::{ Cookie, CookieJar, Status } };
+use rocket::http::{ Cookie, CookieJar, Status };
 
 /// # Logout
 /// **Route**: /auth/logout

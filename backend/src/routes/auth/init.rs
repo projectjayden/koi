@@ -1,4 +1,5 @@
-use crate::{ guards::auth::AuthenticatedUser, models::user::SerializedUser };
+use crate::{ guards::auth::AuthenticatedUser, models::user::SerializedUser, utils::{ db::Db, functions::get_unix_seconds } };
+use rocket_db_pools::{ sqlx, Connection };
 use rocket::serde::json::Json;
 
 /// # Init
@@ -23,6 +24,12 @@ use rocket::serde::json::Json;
 /// }
 /// ```
 #[get("/init", format = "json")]
-pub async fn init(user: AuthenticatedUser) -> Json<SerializedUser> {
+pub async fn init(mut db: Connection<Db>, user: AuthenticatedUser) -> Json<SerializedUser> {
+  sqlx
+    ::query("UPDATE users SET last_login = ? WHERE uuid = ?")
+    .bind(get_unix_seconds() as u32)
+    .bind(&user.0.uuid)
+    .execute(&mut **db).await
+    .unwrap();
   Json(user.0.serialize())
 }

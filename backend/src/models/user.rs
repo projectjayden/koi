@@ -23,6 +23,8 @@ pub struct SerializedUser {
   pub preferences: String
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
 pub struct User {
   /// Internal user ID, incremented by 1 for each user created.
   id: u32,
@@ -82,5 +84,9 @@ impl User {
       deal_alert_radius: self.deal_alert_radius,
       preferences: self.preferences.clone()
     }
+  }
+
+  pub fn get_id(&self) -> u32 {
+    self.id
   }
 }

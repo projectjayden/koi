@@ -21,6 +21,8 @@ fn rocket() -> _ {
     ::build()
     .attach(utils::db::Db::init())
     .mount("/", routes![index])
-    .mount("/auth", routes![routes::auth::init::init, routes::auth::signup::signup, routes::auth::login::login, routes::auth::logout::logout, routes::auth::change_password::change_password])
+    .mount("/auth", routes![routes::auth::Init, routes::auth::Signup, routes::auth::Login, routes::auth::Logout, routes::auth::ChangePassword, routes::auth::DeleteAccount])
+    .mount("/user", routes![routes::user::Lookup])
+    .mount("/user/account", routes![routes::user::account::ManageSubscription, routes::user::account::ManageDeals])
     .register("/", catchers![catchers::bad_request, catchers::unauthorized, catchers::not_found, catchers::internal_server_error])
 }

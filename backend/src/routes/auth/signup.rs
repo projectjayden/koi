@@ -1,7 +1,7 @@
 use rocket::{ http::{ CookieJar, Status }, serde::{ Deserialize, json::Json } };
-use crate::{ utils::{ db::Db, functions::{ create_cookie, get_unix_seconds } } };
-use bcrypt::{ DEFAULT_COST, hash };
+use crate::utils::{ db::Db, functions::{ create_cookie, get_unix_seconds } };
 use rocket_db_pools::sqlx::{ self, Row };
+use bcrypt::{ DEFAULT_COST, hash };
 use rocket_db_pools::Connection;
 use zxcvbn::zxcvbn;
 use uuid::Uuid;
@@ -45,7 +45,7 @@ pub async fn signup(mut db: Connection<Db>, cookies: &CookieJar<'_>, data: Json<
 
   let hashed_password: String = hash(data.password, DEFAULT_COST).unwrap();
 
-  let result: Option<String> = sqlx
+  let result: String = sqlx
     ::query("INSERT INTO users (uuid, password, last_login, email, date_joined) VALUES (?, ?, ?, ?, ?) RETURNING uuid")
     .bind(Uuid::new_v4().to_string())
     .bind(&hashed_password)
@@ -54,14 +54,10 @@ pub async fn signup(mut db: Connection<Db>, cookies: &CookieJar<'_>, data: Json<
     .bind(get_unix_seconds() as u32)
     .fetch_one(&mut **db).await
     .and_then(|row: sqlx::sqlite::SqliteRow| Ok(row.try_get::<String, _>("uuid").unwrap()))
-    .ok();
+    .ok()
+    .unwrap();
 
-  match result {
-    Some(uuid) => {
-      cookies.add_private(create_cookie("auth_token", uuid));
+  cookies.add_private(create_cookie("auth_token", result));
 
-      Status::Ok
-    }
-    None => Status::InternalServerError,
-  }
+  Status::Ok 
 }

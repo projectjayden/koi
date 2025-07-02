@@ -1,6 +1,6 @@
 use rocket::{ http::{ CookieJar, Status }, serde::{ Deserialize, json::Json } };
-use crate::{ utils::{ db::Db, functions::create_cookie } };
-use crate::{ guards::auth::AuthenticatedUser };
+use crate::utils::{ db::Db, functions::create_cookie };
+use crate::guards::auth::AuthenticatedUser;
 use bcrypt::{ hash, verify, DEFAULT_COST };
 use rocket_db_pools::Connection;
 use rocket_db_pools::sqlx;
@@ -16,7 +16,7 @@ pub struct ChangePasswordData<'r> {
 /// # Change Password
 /// **Route**: /auth/change-password
 ///
-/// **Request method**: GET
+/// **Request method**: POST
 ///
 /// **Input**:
 /// ```ts
