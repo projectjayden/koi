@@ -2,6 +2,7 @@ use ort::{ Environment, SessionBuilder, Value };
 use tokenizers::Tokenizer;
 use ndarray::Array2;
 
+// TODO: fix this
 pub async fn input(ingredients: Vec<&str>) -> anyhow::Result<String> {
   let tokenizer = Tokenizer::from_file("my_tokenizer/tokenizer.json")?;
   let format_string = format!("Suggest recipes that can be used with these ingredients: {}", ingredients.join(", "));
