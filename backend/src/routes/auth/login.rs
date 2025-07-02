@@ -1,5 +1,5 @@
 use rocket::{ http::{ CookieJar, Status }, serde::{ Deserialize, json::Json } };
-use crate::{ utils::{ db::Db, functions::create_cookie } };
+use crate::utils::{ db::Db, functions::{create_cookie, get_unix_seconds} };
 use rocket_db_pools::sqlx::{ self, Row };
 use rocket_db_pools::Connection;
 use bcrypt::verify;
@@ -30,7 +30,8 @@ pub struct LoginData<'r> {
 #[post("/login", format = "json", data = "<data>")]
 pub async fn login(mut db: Connection<Db>, cookies: &CookieJar<'_>, data: Json<LoginData<'_>>) -> Status {
   let user_data: Option<(String, String)> = sqlx
-    ::query("SELECT uuid, password FROM users WHERE email = ?")
+    ::query("UPDATE users SET last_login = ? WHERE email = ? RETURNING uuid, password")
+    .bind(get_unix_seconds() as u32)
     .bind(data.email)
     .fetch_one(&mut **db).await
     .and_then(|row: sqlx::sqlite::SqliteRow| {
