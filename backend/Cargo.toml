@@ -10,3 +10,6 @@ uuid = { version = "1", features = ["v4"] }
 dotenvy = "0.15.7"
 bcrypt = "0.17.0"
 zxcvbn = "3.1.0"
+tokenizers = "0.13"
+ort = "1.14"
+ndarray = "0.15"
