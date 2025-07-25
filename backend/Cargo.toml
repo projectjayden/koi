@@ -4,12 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rocket = { version = "0.5.1", features = ["secrets", "json"] }
 rocket_db_pools = { version = "0.2.0", features = ["sqlx_sqlite"] }
+rocket = { version = "0.5.1", features = ["secrets", "json"] }
 uuid = { version = "1", features = ["v4"] }
+jwt-simple = "0.12"
+tokenizers = "0.13"
 dotenvy = "0.15.7"
 bcrypt = "0.17.0"
-zxcvbn = "3.1.0"
-tokenizers = "0.13"
-ort = "1.14"
 ndarray = "0.15"
+zxcvbn = "3.1.0"
+base64 = "0.21"

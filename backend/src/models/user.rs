@@ -3,7 +3,7 @@ use rocket::{ serde::{ Deserialize, Serialize } };
 #[derive(Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct SerializedUser {
-  /// Public-facing user ID.
+  /// User ID.
   pub uuid: String,
   /// User's email address.
   pub email: String,
@@ -11,8 +11,8 @@ pub struct SerializedUser {
   pub last_login: u32,
   /// The user's join date, as a unix timestamp.
   pub date_joined: u32,
-  /// If the user is associated with a store, the store's ID.
-  pub store_id: Option<u32>,
+  /// If the user is associated with a store, the store's UUID.
+  pub store_uuid: Option<String>,
   /// Whether the user is a paying subscriber. Defaults to `false`.
   pub is_subscribed: bool,
   /// Whether the user has deal alerts enabled. Defaults to `true`.
@@ -28,7 +28,7 @@ pub struct SerializedUser {
 pub struct User {
   /// Internal user ID, incremented by 1 for each user created.
   id: u32,
-  /// Public-facing user ID.
+  /// User ID.
   pub uuid: String,
   /// User's email address.
   pub email: String,
@@ -38,8 +38,8 @@ pub struct User {
   pub last_login: u32,
   /// The user's join date, as a unix timestamp.
   pub date_joined: u32,
-  /// If the user is associated with a store, the store's ID.
-  pub store_id: Option<u32>,
+  /// If the user is associated with a store, the store's UUID.
+  pub store_uuid: Option<String>,
   /// Whether the user is a paying subscriber. Defaults to `false`.
   pub is_subscribed: bool,
   /// Whether the user has deal alerts enabled. Defaults to `true`.
@@ -56,7 +56,7 @@ impl User {
   /// 
   /// * `is_subscribed` - 0 or 1
   /// * `deal_alert_active` - 0 or 1
-  pub fn new(id: u32, uuid: String, email: String, password: String, last_login: u32, date_joined: u32, store_id: Option<u32>, is_subscribed: u8, deal_alert_active: u8, deal_alert_radius: u8, preferences: String) -> Self {
+  pub fn new(id: u32, uuid: String, email: String, password: String, last_login: u32, date_joined: u32, store_uuid: Option<String>, is_subscribed: u8, deal_alert_active: u8, deal_alert_radius: u8, preferences: String) -> Self {
     Self {
       id,
       uuid,
@@ -64,7 +64,7 @@ impl User {
       password,
       last_login,
       date_joined,
-      store_id,
+      store_uuid,
       is_subscribed: is_subscribed == 1,
       deal_alert_active: deal_alert_active == 1,
       deal_alert_radius,
@@ -78,15 +78,11 @@ impl User {
       email: self.email.clone(),
       last_login: self.last_login,
       date_joined: self.date_joined,
-      store_id: self.store_id,
+      store_uuid: self.store_uuid.clone(),
       is_subscribed: self.is_subscribed,
       deal_alert_active: self.deal_alert_active,
       deal_alert_radius: self.deal_alert_radius,
       preferences: self.preferences.clone()
     }
-  }
-
-  pub fn get_id(&self) -> u32 {
-    self.id
   }
 }

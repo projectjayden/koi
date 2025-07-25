@@ -1,5 +1,5 @@
-use rocket::{ http::{ CookieJar, Status }, serde::{ Deserialize, json::Json } };
-use crate::utils::{ db::Db, functions::{create_cookie, get_unix_seconds} };
+use rocket::{ http::Status, serde::{ Serialize, Deserialize, json::Json } };
+use crate::utils::{ db::Db, jwt::generate_jwt };
 use rocket_db_pools::sqlx::{ self, Row };
 use rocket_db_pools::Connection;
 use bcrypt::verify;
@@ -9,6 +9,13 @@ use bcrypt::verify;
 pub struct LoginData<'r> {
   email: &'r str,
   password: &'r str,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct LoginReturnData {
+  /// JWT Token. Should be sent in the Authorization header in every request.
+  token: String,
 }
 
 /// # Login
@@ -25,13 +32,16 @@ pub struct LoginData<'r> {
 /// ```
 ///
 /// **Output**:
-/// - 200 (success)
+/// ```ts
+/// {
+///   token: string
+/// }
+/// ```
 /// - 401 (error)
 #[post("/login", format = "json", data = "<data>")]
-pub async fn login(mut db: Connection<Db>, cookies: &CookieJar<'_>, data: Json<LoginData<'_>>) -> Status {
+pub async fn login(mut db: Connection<Db>, data: Json<LoginData<'_>>) -> Result<Json<LoginReturnData>, Status> {
   let user_data: Option<(String, String)> = sqlx
-    ::query("UPDATE users SET last_login = ? WHERE email = ? RETURNING uuid, password")
-    .bind(get_unix_seconds() as u32)
+    ::query("SELECT uuid, password FROM users WHERE email = $1")
     .bind(data.email)
     .fetch_one(&mut **db).await
     .and_then(|row: sqlx::sqlite::SqliteRow| {
@@ -44,16 +54,18 @@ pub async fn login(mut db: Connection<Db>, cookies: &CookieJar<'_>, data: Json<L
   match &user_data {
     Some((_, hashed_password)) => {
       if !verify(data.password, hashed_password.as_str()).unwrap() {
-        return Status::Unauthorized;
+        return Err(Status::Unauthorized);
       }
     }
     None => {
-      return Status::Unauthorized;
+      return Err(Status::Unauthorized);
     }
   }
 
   let (uuid, _) = user_data.unwrap();
-  cookies.add_private(create_cookie("auth_token", uuid));
-
-  Status::Ok
+  Ok(
+    Json(LoginReturnData {
+      token: generate_jwt(&uuid).unwrap(),
+    })
+  )
 }

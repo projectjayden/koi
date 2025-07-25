@@ -2,16 +2,19 @@
 extern crate rocket;
 
 use rocket_db_pools::Database;
+use rocket::http::Status;
 
 mod catchers;
 mod guards;
 mod models;
 mod routes;
 mod utils;
+// mod scripts;
 
 #[get("/")]
-fn index() -> &'static str {
-  "ok"
+fn index() -> Status {
+  // scripts::generate_keys::main();
+  Status::NotFound
 }
 
 #[launch]
@@ -23,6 +26,6 @@ fn rocket() -> _ {
     .mount("/", routes![index])
     .mount("/auth", routes![routes::auth::Init, routes::auth::Signup, routes::auth::Login, routes::auth::Logout, routes::auth::ChangePassword, routes::auth::DeleteAccount])
     .mount("/user", routes![routes::user::Lookup])
-    .mount("/user/account", routes![routes::user::account::ManageSubscription, routes::user::account::ManageDeals])
+    .mount("/user/account", routes![routes::user::account::ManageSubscription, routes::user::account::ManageDeals, routes::user::account::AddAllergies, routes::user::account::RemoveAllergies])
     .register("/", catchers![catchers::bad_request, catchers::unauthorized, catchers::not_found, catchers::internal_server_error])
 }

@@ -33,7 +33,7 @@ pub struct DealsData {
 /// **Output**:
 /// - 200 (success)
 /// - 400 (invalid radius)
-#[get("/deals", format = "json", data = "<data>")]
+#[post("/deals", format = "json", data = "<data>")]
 pub async fn deals(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<DealsData>) -> Status {
   let radius: u8 = data.0.new_radius.unwrap_or(0);
   // if radius out of bounds OR no radius but deals is enabled
@@ -42,7 +42,7 @@ pub async fn deals(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<D
   }
 
   sqlx
-    ::query("UPDATE users SET deals_alert_active = ?, deals_alert_radius = ? WHERE uuid = ?")
+    ::query("UPDATE users SET deals_alert_active = $1, deals_alert_radius = $2 WHERE uuid = $3")
     .bind(data.0.new_status as u8)
     .bind(radius)
     .bind(&user.0.uuid)

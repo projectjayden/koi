@@ -1,7 +1,8 @@
 use crate::guards::auth::AuthenticatedUser;
-use rocket::http::{ CookieJar, Status };
+use crate::guards::revoke_jwt::RevokeJWT;
 use rocket_db_pools::Connection;
 use rocket_db_pools::sqlx;
+use rocket::http::Status;
 use crate::utils::db::Db;
 
 /// # Delete Account
@@ -14,9 +15,8 @@ use crate::utils::db::Db;
 /// **Output**:
 /// - 200 (success)
 #[get("/delete-account")]
-pub async fn delete_account(mut db: Connection<Db>, cookies: &CookieJar<'_>, user: AuthenticatedUser) -> Status {
-  sqlx::query("DELETE FROM users WHERE uuid = ?").bind(&user.0.uuid).execute(&mut **db).await.unwrap();
-  cookies.remove_private("auth_token");
+pub async fn delete_account(mut db: Connection<Db>, user: AuthenticatedUser, _revoke_jwt: RevokeJWT) -> Status {
+  sqlx::query("DELETE FROM users WHERE uuid = $1").bind(&user.0.uuid).execute(&mut **db).await.unwrap();
 
   Status::Ok
 }

@@ -27,11 +27,11 @@ pub struct ManageSubscriptionData {
 ///
 /// **Output**:
 /// - 200 (success)
-#[get("/subscription", format = "json", data = "<data>")]
+#[post("/subscription", format = "json", data = "<data>")]
 pub async fn subscription(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<ManageSubscriptionData>) -> Status {
   // TODO: subscription
   sqlx
-    ::query("UPDATE users SET is_subscribed = ? WHERE uuid = ?")
+    ::query("UPDATE users SET is_subscribed = $1 WHERE uuid = $2")
     .bind(data.0.new_status as u8)
     .bind(&user.0.uuid)
     .execute(&mut **db).await

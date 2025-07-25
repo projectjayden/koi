@@ -33,7 +33,7 @@ pub struct LookupInput {
 #[serde(crate = "rocket::serde")]
 pub struct LookupOutput {
   user: Option<SerializedUser>,
-  allergies: Option<Vec<String>>,
+  allergies: Option<Vec<(u32, String)>>,
   reviews: Option<Vec<SerializedUserReview>>,
   /// Total number of reviews.
   ///
@@ -75,7 +75,7 @@ pub struct LookupOutput {
 ///     deal_alert_radius: number;
 ///     preferences: string;
 ///   },
-///   allergies?: string[];
+///   allergies?: [number, string][]; // [id, name][]
 ///   reviews?: {
 ///     user_uuid: string;
 ///     store_uuid: string;
@@ -86,22 +86,22 @@ pub struct LookupOutput {
 /// }
 /// ```
 #[post("/lookup/<uuid>", format = "json", data = "<data>")]
-pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, uuid: String, data: Json<LookupInput>) -> Result<Json<LookupOutput>, Status> {
-  // if include_reviews is true but review_limit or review_offset is missing
+pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, uuid: &str, data: Json<LookupInput>) -> Result<Json<LookupOutput>, Status> {
+  // * if include_reviews is true but review_limit or review_offset is missing
   if data.0.include_reviews && (data.0.review_limit.is_none() || data.0.review_offset.is_none()) {
     return Err(Status::BadRequest);
   }
 
-  let user: Option<User> = get_user_data(&mut **db, &uuid).await;
+  let user: Option<User> = get_user_data(&mut **db, &uuid.to_string()).await;
   if let None = user {
     return Err(Status::NotFound);
   }
   let user: User = user.unwrap();
 
-  let allergies: Option<Vec<String>> = if data.0.include_allergies { get_allergies(&mut **db, user.get_id()).await } else { None };
+  let allergies: Option<Vec<(u32, String)>> = if data.0.include_allergies { get_allergies(&mut **db, &user.uuid).await } else { None };
 
   let review_data: Option<(usize, Vec<UserReview>)> = if data.0.include_reviews {
-    get_reviews(&mut **db, user.get_id(), data.0.review_limit.unwrap(), data.0.review_offset.unwrap()).await
+    get_reviews(&mut **db, &user.uuid, data.0.review_limit.unwrap(), data.0.review_offset.unwrap()).await
   } else {
     None
   };
@@ -114,7 +114,10 @@ pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, uuid: Stri
       (Some(size), Some(serialized_reviews))
     }
     None => {
-      return Err(Status::BadRequest);
+      if data.0.include_reviews {
+        return Err(Status::BadRequest);
+      }
+      (None, None)
     }
   };
 
@@ -132,7 +135,7 @@ pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, uuid: Stri
 
 async fn get_user_data(db: &mut SqliteConnection, uuid: &String) -> Option<User> {
   sqlx
-    ::query("SELECT * FROM users WHERE uuid = ?")
+    ::query("SELECT * FROM users WHERE uuid = $1")
     .bind(uuid)
     .fetch_one(db).await
     .and_then(|row: sqlx::sqlite::SqliteRow| {
@@ -142,25 +145,29 @@ async fn get_user_data(db: &mut SqliteConnection, uuid: &String) -> Option<User>
       let password: String = row.try_get::<String, _>("password").unwrap();
       let last_login: u32 = row.try_get::<u32, _>("last_login").unwrap();
       let date_joined: u32 = row.try_get::<u32, _>("date_joined").unwrap();
-      let store_id: Option<u32> = row.try_get::<Option<u32>, _>("store_id").unwrap();
+      let store_uuid: Option<String> = row.try_get::<Option<String>, _>("store_uuid").unwrap();
       let is_subscribed: u8 = row.try_get::<u8, _>("is_subscribed").unwrap();
       let deal_alert_active: u8 = row.try_get::<u8, _>("deal_alert_active").unwrap();
       let deal_alert_radius: u8 = row.try_get::<u8, _>("deal_alert_radius").unwrap();
       let preferences: String = row.try_get::<String, _>("preferences").unwrap();
-      Ok(User::new(id, uuid, email, password, last_login, date_joined, store_id, is_subscribed, deal_alert_active, deal_alert_radius, preferences))
+      Ok(User::new(id, uuid, email, password, last_login, date_joined, store_uuid, is_subscribed, deal_alert_active, deal_alert_radius, preferences))
     })
     .ok()
 }
 
-async fn get_allergies(db: &mut SqliteConnection, id: u32) -> Option<Vec<String>> {
+async fn get_allergies(db: &mut SqliteConnection, uuid: &String) -> Option<Vec<(u32, String)>> {
   sqlx
-    ::query("SELECT * FROM user_allergies WHERE user_id = ?")
-    .bind(id)
+    ::query("SELECT * FROM user_allergies WHERE user_uuid = $1")
+    .bind(uuid)
     .fetch_all(db).await
     .and_then(|rows: Vec<sqlx::sqlite::SqliteRow>| {
-      let allergies: Vec<String> = rows
+      let allergies: Vec<(u32, String)> = rows
         .into_iter()
-        .map(|row: sqlx::sqlite::SqliteRow| { row.try_get::<String, _>("allergy").unwrap() })
+        .map(|row: sqlx::sqlite::SqliteRow| {
+          let id: u32 = row.try_get::<u32, _>("id").unwrap();
+          let allergy: String = row.try_get::<String, _>("allergy").unwrap();
+          (id, allergy)
+        })
         .collect();
       return Ok(allergies);
     })
@@ -168,10 +175,10 @@ async fn get_allergies(db: &mut SqliteConnection, id: u32) -> Option<Vec<String>
 }
 
 /// (total_reviews, reviews)
-async fn get_reviews(db: &mut SqliteConnection, id: u32, limit: u32, offset: u32) -> Option<(usize, Vec<UserReview>)> {
+async fn get_reviews(db: &mut SqliteConnection, uuid: &String, limit: u32, offset: u32) -> Option<(usize, Vec<UserReview>)> {
   sqlx
-    ::query("SELECT * FROM reviews WHERE user_id = ?")
-    .bind(id)
+    ::query("SELECT * FROM reviews WHERE user_uuid = $1")
+    .bind(uuid)
     .fetch_all(db).await
     .and_then(|rows: Vec<sqlx::sqlite::SqliteRow>| {
       let num_of_reviews: usize = rows.len();
@@ -185,11 +192,11 @@ async fn get_reviews(db: &mut SqliteConnection, id: u32, limit: u32, offset: u32
         let row: &sqlx::sqlite::SqliteRow = rows.get(i as usize).unwrap();
 
         let id: u32 = row.try_get::<u32, _>("id").unwrap();
-        let user_id: u32 = row.try_get::<u32, _>("user_id").unwrap();
-        let store_id: u32 = row.try_get::<u32, _>("store_id").unwrap();
+        let user_uuid: String = row.try_get::<String, _>("user_uuid").unwrap();
+        let store_uuid: String = row.try_get::<String, _>("store_uuid").unwrap();
         let rating: f32 = row.try_get::<f32, _>("rating").unwrap();
         let description: String = row.try_get::<String, _>("description").unwrap();
-        reviews.push(UserReview::new(id, user_id, store_id, rating, description));
+        reviews.push(UserReview::new(id, user_uuid, store_uuid, rating, description));
       }
       return Ok((num_of_reviews, reviews));
     })

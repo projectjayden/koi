@@ -17,7 +17,8 @@ cargo install --locked watchexec-cli
 4. Create a .env file
 
 ```sh
-ROCKET_SECRET_KEY=
+ED25519_PRIVATE_KEY=
+ED25519_PUBLIC_KEY=
 ```
 
 5. Run the server

@@ -1,5 +1,5 @@
-use rocket::{ http::{ CookieJar, Status }, serde::{ Deserialize, json::Json } };
-use crate::utils::{ db::Db, functions::{ create_cookie, get_unix_seconds } };
+use crate::utils::{ db::Db, functions::get_unix_seconds, jwt::generate_jwt };
+use rocket::{ http::Status, serde::{ Serialize, Deserialize, json::Json } };
 use rocket_db_pools::sqlx::{ self, Row };
 use bcrypt::{ DEFAULT_COST, hash };
 use rocket_db_pools::Connection;
@@ -11,6 +11,12 @@ use uuid::Uuid;
 pub struct SignupData<'r> {
   email: &'r str,
   password: &'r str,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct SignupReturn {
+  token: String,
 }
 
 /// # Signup
@@ -27,26 +33,31 @@ pub struct SignupData<'r> {
 /// ```
 ///
 /// **Output**:
-/// - 201 (success)
+/// ```ts
+/// {
+///   token: string;
+/// }
+/// ```
 /// - 400 (password too weak)
 /// - 401 (email already used)
 /// - 500 (error)
 #[post("/signup", format = "json", data = "<data>")]
-pub async fn signup(mut db: Connection<Db>, cookies: &CookieJar<'_>, data: Json<SignupData<'_>>) -> Status {
+pub async fn signup(mut db: Connection<Db>, data: Json<SignupData<'_>>) -> Result<Json<SignupReturn>, Status> {
   let password_strength: zxcvbn::Entropy = zxcvbn(data.password, &[data.email]);
   if password_strength.score() < zxcvbn::Score::Three {
-    return Status::BadRequest;
+    return Err(Status::BadRequest);
   }
 
-  let email_in_db: Option<sqlx::sqlite::SqliteRow> = sqlx::query("SELECT * FROM users WHERE email = ?").bind(data.email).fetch_one(&mut **db).await.ok();
+  let email_in_db: Option<sqlx::sqlite::SqliteRow> = sqlx::query("SELECT * FROM users WHERE email = $1").bind(data.email).fetch_one(&mut **db).await.ok();
   if let Some(_) = email_in_db {
-    return Status::Unauthorized;
+    return Err(Status::Unauthorized);
   }
 
   let hashed_password: String = hash(data.password, DEFAULT_COST).unwrap();
 
-  let result: String = sqlx
-    ::query("INSERT INTO users (uuid, password, last_login, email, date_joined) VALUES (?, ?, ?, ?, ?) RETURNING uuid")
+  let uuid: String = Uuid::new_v4().to_string();
+  sqlx
+    ::query("INSERT INTO users (uuid, password, last_login, email, date_joined) VALUES ($1, $2, $3, $4, $5)")
     .bind(Uuid::new_v4().to_string())
     .bind(&hashed_password)
     .bind(get_unix_seconds() as u32)
@@ -54,10 +65,11 @@ pub async fn signup(mut db: Connection<Db>, cookies: &CookieJar<'_>, data: Json<
     .bind(get_unix_seconds() as u32)
     .fetch_one(&mut **db).await
     .and_then(|row: sqlx::sqlite::SqliteRow| Ok(row.try_get::<String, _>("uuid").unwrap()))
-    .ok()
     .unwrap();
 
-  cookies.add_private(create_cookie("auth_token", result));
-
-  Status::Ok 
+  Ok(
+    Json(SignupReturn {
+      token: generate_jwt(&uuid).unwrap(),
+    })
+  )
 }
