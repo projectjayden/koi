@@ -21,7 +21,9 @@ ED25519_PRIVATE_KEY=
 ED25519_PUBLIC_KEY=
 ```
 
-5. Run the server
+5. Put the `db.sqlite` in `/backend`
+
+6. Run the server
 
 ```sh
 watchexec -r -e rs -- cargo run
