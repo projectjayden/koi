@@ -6,7 +6,6 @@
 //
 
 import XCTest
-@testable import frontend
 
 final class frontendTests: XCTestCase {
 

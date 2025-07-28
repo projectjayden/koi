@@ -1,0 +1,8 @@
+//
+//  Debug.xcconfig
+//  frontend
+//
+//  Created by Kenneth Ng on 7/24/25.
+//
+
+BASE_URL = http:/$()/127.0.0.1:8000
