@@ -4,5 +4,9 @@
 <dict>
 	<key>BASE_URL</key>
 	<string>$(BASE_URL)</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 </dict>
 </plist>
