@@ -2,20 +2,25 @@ use rocket::Request;
 
 #[catch(500)]
 pub fn internal_server_error() -> &'static str {
-  "An internal server error occurred."
+  "500 - An internal server error occurred"
 }
 
 #[catch(400)]
 pub fn bad_request() -> &'static str {
-  "Request was invalid."
+  "400 - Request was invalid"
 }
 
 #[catch(401)]
 pub fn unauthorized() -> &'static str {
-  "Please login to continue."
+  "401 - Login required"
+}
+
+#[catch(403)]
+pub fn forbidden() -> &'static str {
+  "403 - Get out"
 }
 
 #[catch(404)]
-pub fn not_found(req: &Request) -> String {
-    format!("Sorry, '{}' is not a valid path.", req.uri())
+pub fn not_found(req: &Request) -> &'static str {
+  "404 - Not found"
 }

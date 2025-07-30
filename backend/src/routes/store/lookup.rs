@@ -1,53 +1,60 @@
-pub mod lookup;
-pub mod create;
-// pub mod rate;
-
-pub use lookup::lookup as Lookup;
-pub use create::create as Create;
-// pub use rate::rate as Rate;
-
 use crate::models::stores::{ Store, Item, Deal, SerializedStore, SerializedStoreReview, StoreReview };
-use crate::guards::{ auth::AuthenticatedUser, store_auth::AuthenticatedStore };
-use rocket::{ http::Status, serde::{ json::Json, Deserialize } };
+use crate::{ guards::auth::AuthenticatedUser, utils::db::Db };
+use rocket::{ http::Status, serde::json::Json };
+use rocket::serde::{ Deserialize, Serialize };
 use rocket_db_pools::Connection;
-use crate::utils::db::Db;
-use lookup::LookupOutput;
 
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
-pub struct StoreInfoInput {
+pub struct LookupInput {
+  /// GPS coordinate of the store.
+  ///
+  /// Format: `<latitude>, <longitude>`
+  geolocation: String,
   /// Whether to include store info in the response.
-  pub get_store_info: bool,
+  get_store_info: bool,
   /// Whether to include inventory in the response.
-  pub get_items: bool,
+  get_items: bool,
   /// Whether to include deals in the response.
-  pub get_deals: bool,
+  get_deals: bool,
   /// Whether to include reviews in the response.
-  pub get_reviews: bool,
+  get_reviews: bool,
   /// Number of reviews to retreive.
   ///
   /// Defaults to `10`.
   ///
   /// If `get_reviews` is `false`, this field can be ommitted.
-  pub review_limit: Option<u32>,
+  review_limit: Option<u32>,
   /// Offset used when retreiving reviews.
   ///
   /// Defaults to `0`.
   ///
   /// If `get_reviews` is `false`, this field can be ommitted.
-  pub review_offset: Option<u32>,
+  review_offset: Option<u32>,
 }
 
-/// # Store Informaton
-/// Same as /store/lookup, but gets the current store's information
-///
-/// **Route**: /store
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct LookupOutput {
+  pub store: Option<SerializedStore>,
+  pub items: Option<Vec<Item>>,
+  pub deals: Option<Vec<Deal>>,
+  pub reviews: Option<Vec<SerializedStoreReview>>,
+  /// Total number of reviews.
+  ///
+  /// Used for pagination.
+  pub total_reviews: Option<usize>,
+}
+
+/// # Store Lookup
+/// **Route**: /store/lookup
 ///
 /// **Request method**: POST
 ///
 /// **Input**:
 /// ```ts
 /// {
+///  geolocation: `${number}, ${number}`;
 ///  get_store_info: boolean;
 ///  get_items: boolean;
 ///  get_deals: boolean;
@@ -63,16 +70,63 @@ pub struct StoreInfoInput {
 /// ```
 ///
 /// **Output**:
-///
-/// Same as /store/lookup
-#[post("/", format = "json", data = "<data>")]
-pub async fn store_info(mut db: Connection<Db>, _user: AuthenticatedUser, store: AuthenticatedStore, data: Json<StoreInfoInput>) -> Result<Json<LookupOutput>, Status> {
+/// ```ts
+/// {
+///   store?: {
+///     uuid: string;
+///     name: string;
+///     latitude: number;
+///     longitude: number;
+///     phone: string | null;
+///     email: string | null;
+///     open_hours: [[string, string], [string, string], ...x5] | null;
+///   },
+///   items?: {
+///     uuid: string;
+///     name: string;
+///     price: number;
+///     manufacturer: string | null;
+///     in_stock: boolean;
+///     store_uuid: string;
+///     deal_uuid: string | null;
+///     image: string | null;
+///   }[],
+///   deals?: {
+///     uuid: string;
+///     store_uuid: string;
+///     name: string;
+///     description: string | null;
+///     start_date: number;
+///     end_date: number;
+///     type: number;
+///     value_1: number;
+///     value_2: number | null;
+///   }[],
+///   reviews?: {
+///     user_uuid: string;
+///     store_uuid: string;
+///     rating: number;
+///     description: string;
+///   }[],
+///   total_reviews?: number;
+/// }
+/// ```
+#[post("/lookup", format = "json", data = "<data>")]
+pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, data: Json<LookupInput>) -> Result<Json<LookupOutput>, Status> {
   // * if get_reviews is true but review_limit or review_offset is missing
   if data.0.get_reviews && (data.0.review_limit.is_none() || data.0.review_offset.is_none()) {
     return Err(Status::BadRequest);
   }
 
-  let store: Option<Store> = Store::new(&mut **db, store.0.uuid).await;
+  let (latitude, longitude) = match data.0.geolocation.split(", ").collect::<Vec<&str>>().as_slice() {
+    [lat, long] => (*lat, *long),
+    _ => {
+      return Err(Status::InternalServerError);
+    }
+  };
+
+  println!("latitude: {}, longitude: {}", latitude, longitude);
+  let store: Option<Store> = Store::from_geolocation(&mut **db, latitude, longitude).await;
   if let None = store {
     return Err(Status::NotFound);
   }

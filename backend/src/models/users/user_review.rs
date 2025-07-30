@@ -1,4 +1,3 @@
-use rocket_db_pools::sqlx::{ self, Row, SqliteConnection };
 use rocket::serde::Serialize;
 
 #[derive(Serialize)]
@@ -33,23 +32,10 @@ impl UserReview {
     }
   }
 
-  pub async fn serialize(&self, db: &mut SqliteConnection) -> SerializedUserReview {
-    let user_uuid: String = sqlx
-      ::query("SELECT uuid FROM users WHERE uuid = ?")
-      .bind(&self.user_uuid)
-      .fetch_one(&mut *db).await
-      .and_then(|row: sqlx::sqlite::SqliteRow| { row.try_get::<String, _>("uuid") })
-      .unwrap();
-    let store_uuid: String = sqlx
-      ::query("SELECT uuid FROM stores WHERE uuid = ?")
-      .bind(&self.user_uuid)
-      .fetch_one(db).await
-      .and_then(|row: sqlx::sqlite::SqliteRow| { row.try_get::<String, _>("uuid") })
-      .unwrap();
-
+  pub async fn serialize(&self) -> SerializedUserReview {
     SerializedUserReview {
-      user_uuid,
-      store_uuid,
+      user_uuid: self.user_uuid.clone(),
+      store_uuid: self.store_uuid.clone(),
       rating: self.rating,
       description: self.description.clone(),
     }

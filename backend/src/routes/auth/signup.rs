@@ -1,8 +1,8 @@
 use crate::utils::{ db::Db, functions::get_unix_seconds, jwt::generate_jwt };
 use rocket::{ http::Status, serde::{ Serialize, Deserialize, json::Json } };
-use rocket_db_pools::sqlx::{ self, Row };
 use bcrypt::{ DEFAULT_COST, hash };
 use rocket_db_pools::Connection;
+use rocket_db_pools::sqlx;
 use zxcvbn::zxcvbn;
 use uuid::Uuid;
 
@@ -63,8 +63,7 @@ pub async fn signup(mut db: Connection<Db>, data: Json<SignupData<'_>>) -> Resul
     .bind(get_unix_seconds() as u32)
     .bind(data.email)
     .bind(get_unix_seconds() as u32)
-    .fetch_one(&mut **db).await
-    .and_then(|row: sqlx::sqlite::SqliteRow| Ok(row.try_get::<String, _>("uuid").unwrap()))
+    .execute(&mut **db).await
     .unwrap();
 
   Ok(

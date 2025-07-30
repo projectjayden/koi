@@ -1,44 +1,43 @@
-use crate::{ guards::auth::AuthenticatedUser, models::user::User, utils::db::Db };
-use crate::models::user_review::{ SerializedUserReview, UserReview };
-use rocket_db_pools::sqlx::{ self, Row, SqliteConnection, Error };
+use crate::{ guards::auth::AuthenticatedUser, models::users::User, utils::db::Db };
+use crate::models::users::{ SerializedUserReview, UserReview };
 use rocket::{ http::Status, serde::json::Json };
 use rocket::serde::{ Deserialize, Serialize };
-use crate::models::user::SerializedUser;
+use crate::models::users::SerializedUser;
 use rocket_db_pools::Connection;
 
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct LookupInput {
   /// Whether to include user info in the response.
-  include_user_info: bool,
+  pub get_user_info: bool,
   /// Whether to include allergies in the response.
-  include_allergies: bool,
+  pub get_allergies: bool,
   /// Whether to include reviews in the response.
-  include_reviews: bool,
+  pub get_reviews: bool,
   /// Number of reviews to retreive.
   ///
   /// Defaults to `10`.
   ///
-  /// If `include_reviews` is `false`, this field can be ommitted.
-  review_limit: Option<u32>,
+  /// If `get_reviews` is `false`, this field can be ommitted.
+  pub review_limit: Option<u32>,
   /// Offset used when retreiving reviews.
   ///
   /// Defaults to `0`.
   ///
-  /// If `include_reviews` is `false`, this field can be ommitted.
-  review_offset: Option<u32>,
+  /// If `get_reviews` is `false`, this field can be ommitted.
+  pub review_offset: Option<u32>,
 }
 
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct LookupOutput {
-  user: Option<SerializedUser>,
-  allergies: Option<Vec<(u32, String)>>,
-  reviews: Option<Vec<SerializedUserReview>>,
+  pub user: Option<SerializedUser>,
+  pub allergies: Option<Vec<(u32, String)>>,
+  pub reviews: Option<Vec<SerializedUserReview>>,
   /// Total number of reviews.
   ///
   /// Used for pagination.
-  total_reviews: Option<usize>,
+  pub total_reviews: Option<usize>,
 }
 
 /// # User Lookup
@@ -49,13 +48,13 @@ pub struct LookupOutput {
 /// **Input**:
 /// ```ts
 /// {
-///  include_user_info: boolean;
-///  include_allergies: boolean;
-///  include_reviews: false;
+///  get_user_info: boolean;
+///  get_allergies: boolean;
+///  get_reviews: false;
 /// } | {
-///  include_user_info: boolean;
-///  include_allergies: boolean;
-///  include_reviews: true;
+///  get_user_info: boolean;
+///  get_allergies: boolean;
+///  get_reviews: true;
 ///  review_limit: number;
 ///  review_offset: number;
 /// }
@@ -87,41 +86,37 @@ pub struct LookupOutput {
 /// ```
 #[post("/lookup/<uuid>", format = "json", data = "<data>")]
 pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, uuid: &str, data: Json<LookupInput>) -> Result<Json<LookupOutput>, Status> {
-  // * if include_reviews is true but review_limit or review_offset is missing
-  if data.0.include_reviews && (data.0.review_limit.is_none() || data.0.review_offset.is_none()) {
+  // * if get_reviews is true but review_limit or review_offset is missing
+  if data.0.get_reviews && (data.0.review_limit.is_none() || data.0.review_offset.is_none()) {
     return Err(Status::BadRequest);
   }
 
-  let user: Option<User> = get_user_data(&mut **db, &uuid.to_string()).await;
+  let user: Option<User> = User::new(&mut **db, uuid.to_string()).await;
   if let None = user {
     return Err(Status::NotFound);
   }
   let user: User = user.unwrap();
 
-  let allergies: Option<Vec<(u32, String)>> = if data.0.include_allergies { get_allergies(&mut **db, &user.uuid).await } else { None };
+  let allergies: Option<Vec<(u32, String)>> = if data.0.get_allergies { Some((&user).get_allergies(&mut **db).await) } else { None };
 
-  let review_data: Option<(usize, Vec<UserReview>)> = if data.0.include_reviews {
-    get_reviews(&mut **db, &user.uuid, data.0.review_limit.unwrap(), data.0.review_offset.unwrap()).await
-  } else {
-    None
-  };
+  let review_data: Option<(usize, Vec<UserReview>)> = if data.0.get_reviews { Some((&user).get_reviews(&mut **db, data.0.review_limit.unwrap(), data.0.review_offset.unwrap()).await) } else { None };
   let (total_reviews, reviews) = match review_data {
     Some((size, reviews)) => {
       let mut serialized_reviews: Vec<SerializedUserReview> = vec![];
       for review in reviews {
-        serialized_reviews.push(review.serialize(&mut **db).await);
+        serialized_reviews.push(review.serialize().await);
       }
       (Some(size), Some(serialized_reviews))
     }
     None => {
-      if data.0.include_reviews {
+      if data.0.get_reviews {
         return Err(Status::BadRequest);
       }
       (None, None)
     }
   };
 
-  let user: Option<SerializedUser> = if data.0.include_user_info { Some(user.serialize()) } else { None };
+  let user: Option<SerializedUser> = if data.0.get_user_info { Some(user.serialize()) } else { None };
 
   Ok(
     Json(LookupOutput {
@@ -131,74 +126,4 @@ pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, uuid: &str
       total_reviews,
     })
   )
-}
-
-async fn get_user_data(db: &mut SqliteConnection, uuid: &String) -> Option<User> {
-  sqlx
-    ::query("SELECT * FROM users WHERE uuid = $1")
-    .bind(uuid)
-    .fetch_one(db).await
-    .and_then(|row: sqlx::sqlite::SqliteRow| {
-      let id: u32 = row.try_get::<u32, _>("id").unwrap();
-      let uuid: String = row.try_get::<String, _>("uuid").unwrap();
-      let email: String = row.try_get::<String, _>("email").unwrap();
-      let password: String = row.try_get::<String, _>("password").unwrap();
-      let last_login: u32 = row.try_get::<u32, _>("last_login").unwrap();
-      let date_joined: u32 = row.try_get::<u32, _>("date_joined").unwrap();
-      let store_uuid: Option<String> = row.try_get::<Option<String>, _>("store_uuid").unwrap();
-      let is_subscribed: u8 = row.try_get::<u8, _>("is_subscribed").unwrap();
-      let deal_alert_active: u8 = row.try_get::<u8, _>("deal_alert_active").unwrap();
-      let deal_alert_radius: u8 = row.try_get::<u8, _>("deal_alert_radius").unwrap();
-      let preferences: String = row.try_get::<String, _>("preferences").unwrap();
-      Ok(User::new(id, uuid, email, password, last_login, date_joined, store_uuid, is_subscribed, deal_alert_active, deal_alert_radius, preferences))
-    })
-    .ok()
-}
-
-async fn get_allergies(db: &mut SqliteConnection, uuid: &String) -> Option<Vec<(u32, String)>> {
-  sqlx
-    ::query("SELECT * FROM user_allergies WHERE user_uuid = $1")
-    .bind(uuid)
-    .fetch_all(db).await
-    .and_then(|rows: Vec<sqlx::sqlite::SqliteRow>| {
-      let allergies: Vec<(u32, String)> = rows
-        .into_iter()
-        .map(|row: sqlx::sqlite::SqliteRow| {
-          let id: u32 = row.try_get::<u32, _>("id").unwrap();
-          let allergy: String = row.try_get::<String, _>("allergy").unwrap();
-          (id, allergy)
-        })
-        .collect();
-      return Ok(allergies);
-    })
-    .ok()
-}
-
-/// (total_reviews, reviews)
-async fn get_reviews(db: &mut SqliteConnection, uuid: &String, limit: u32, offset: u32) -> Option<(usize, Vec<UserReview>)> {
-  sqlx
-    ::query("SELECT * FROM reviews WHERE user_uuid = $1")
-    .bind(uuid)
-    .fetch_all(db).await
-    .and_then(|rows: Vec<sqlx::sqlite::SqliteRow>| {
-      let num_of_reviews: usize = rows.len();
-      if offset + limit > (num_of_reviews as u32) {
-        return Err(Error::RowNotFound);
-      }
-
-      let mut reviews: Vec<UserReview> = vec![];
-      let reviews_to_get: u32 = offset + limit;
-      for i in offset..reviews_to_get {
-        let row: &sqlx::sqlite::SqliteRow = rows.get(i as usize).unwrap();
-
-        let id: u32 = row.try_get::<u32, _>("id").unwrap();
-        let user_uuid: String = row.try_get::<String, _>("user_uuid").unwrap();
-        let store_uuid: String = row.try_get::<String, _>("store_uuid").unwrap();
-        let rating: f32 = row.try_get::<f32, _>("rating").unwrap();
-        let description: String = row.try_get::<String, _>("description").unwrap();
-        reviews.push(UserReview::new(id, user_uuid, store_uuid, rating, description));
-      }
-      return Ok((num_of_reviews, reviews));
-    })
-    .ok()
 }
