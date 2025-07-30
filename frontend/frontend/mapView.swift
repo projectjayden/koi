@@ -2,6 +2,45 @@ import SwiftUI
 import MapKit
 import CoreLocation
 
+// BELOW HAS STRUCTS AND ENUMS FOR THE DIFF DATA TYPES //
+
+struct SelectedStore {
+    var mapItem: MKMapItem
+    var details: StoreDetails
+}
+
+struct storeItem {
+    var name: String
+    var brand: String
+    var price: Double
+    var quantity: Int
+}
+
+enum DealType {
+    case percentageOff(Int)
+    case buyXGetYPercentOff(Int, Int)
+    case buyXGetY(Int, Int)
+}
+
+struct Deals {
+    var type: DealType
+    var category: String
+    var itemsAppliedTo: [storeItem]
+    var description: String
+}
+
+struct StoreDetails {
+    var storeTitle: String
+    var storeDescription: String
+    var storeRating: Double
+    var storeAddress: String
+    var storeImages: [String] // Changed to String URLs for mock data
+    var storeDeals: [Deals] // Changed to array for multiple deals
+    var itemList: [storeItem]
+    var storeHours: String
+    var phoneNumber: String
+}
+
 struct MapView: View {
     @State private var position: MapCameraPosition = .region(MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
@@ -47,6 +86,7 @@ struct MapView: View {
         }) {
             storeDetailSheet
         }    }
+    
 
 // BELOW HAS VARIABLES AND FUNCS ALL FOR THE VIEW //
     
@@ -245,53 +285,14 @@ struct MapView: View {
         .animation(.easeInOut(duration: 0.3), value: isLoadingStores)
     }
     
-// BELOW HAS STRUCTS AND ENUMS FOR THE DIFF DATA TYPES //
-    
-    struct SelectedStore {
-        var mapItem: MKMapItem
-        var details: StoreDetails
-    }
-    
-    struct Item {
-        var name: String
-        var brand: String
-        var price: Double
-        var quantity: Int
-    }
-    
-    enum DealType {
-        case percentageOff(Int)
-        case buyXGetYPercentOff(Int, Int)
-        case buyXGetY(Int, Int)
-    }
-    
-    struct Deals {
-        var type: DealType
-        var category: String
-        var itemsAppliedTo: [Item]
-        var description: String
-    }
-    
-    struct StoreDetails {
-        var storeTitle: String
-        var storeDescription: String
-        var storeRating: Double
-        var storeAddress: String
-        var storeImages: [String] // Changed to String URLs for mock data
-        var storeDeals: [Deals] // Changed to array for multiple deals
-        var itemList: [Item]
-        var storeHours: String
-        var phoneNumber: String
-    }
-    
 // TESTING FUNCTION -- SHOULD DELETE AND REPLACE
     
     private func createMockStoreDetails(for mapItem: MKMapItem) -> StoreDetails {
          let sampleItems = [
-             Item(name: "Organic Bananas", brand: "Fresh Farms", price: 2.99, quantity: 1),
-             Item(name: "Whole Milk", brand: "Dairy Best", price: 3.49, quantity: 1),
-             Item(name: "Sourdough Bread", brand: "Baker's Choice", price: 4.99, quantity: 1),
-             Item(name: "Free Range Eggs", brand: "Happy Hens", price: 5.99, quantity: 12)
+             storeItem(name: "Organic Bananas", brand: "Fresh Farms", price: 2.99, quantity: 1),
+             storeItem(name: "Whole Milk", brand: "Dairy Best", price: 3.49, quantity: 1),
+             storeItem(name: "Sourdough Bread", brand: "Baker's Choice", price: 4.99, quantity: 1),
+             storeItem(name: "Free Range Eggs", brand: "Happy Hens", price: 5.99, quantity: 12)
          ]
          
          let sampleDeals = [
@@ -331,8 +332,8 @@ struct MapView: View {
 // MODAL CODE - USES STORE DETAILS AS TYPE//
     
     struct StoreDetailModal: View {
-        let store: MapView.SelectedStore
-        @Binding var selectedResult: MapView.SelectedStore?
+        let store: SelectedStore
+        @Binding var selectedResult: SelectedStore?
         @Environment(\.dismiss) private var dismiss
         
         var body: some View {
@@ -512,119 +513,6 @@ struct MapView: View {
                         }
                     }
                 }
-            }
-        }
-        
-        // builds background of card for each of the different sections
-        private func modernCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-            content()
-                .padding(20)
-                .background {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(.white.opacity(0.2), lineWidth: 1)
-                        }
-                }
-        }
-        
-        // the header for the store name and image
-        private func sectionHeader(_ title: String, icon: String) -> some View {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.blue)
-                
-                Text(title)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.primary)
-            }
-        }
-        
-        // shows address and hours of store
-        private func infoRow(icon: String, text: String) -> some View {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.blue)
-                    .frame(width: 16)
-                
-                Text(text)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.primary)
-            }
-        }
-        
-        // card for the deals
-        private func dealCard(deal: MapView.Deals) -> some View {
-            HStack(spacing: 12) {
-                Image(systemName: "tag.fill")
-                    .font(.system(size: 16))
-                    .foregroundColor(.orange)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(deal.description)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.primary)
-                    
-                    Text(deal.category)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-            }
-            .padding(12)
-            .background {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.orange.opacity(0.1))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-                    }
-            }
-        }
-        
-        // card for the items
-        private func itemCard(item: MapView.Item) -> some View {
-            VStack(alignment: .leading, spacing: 8) {
-                // Mock item image
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(LinearGradient(
-                        colors: [.green.opacity(0.2), .blue.opacity(0.2)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-                    .frame(height: 80)
-                    .overlay {
-                        Image(systemName: "leaf.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.green.opacity(0.7))
-                    }
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(item.name)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.primary)
-                        .lineLimit(2)
-                    
-                    Text(item.brand)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                    
-                    Text("$\(String(format: "%.2f", item.price))")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.green)
-                }
-            }
-            .padding(12)
-            .background {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
             }
         }
     }
@@ -1039,6 +927,119 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         print("Location manager failed with error: \(error.localizedDescription)")
+    }
+}
+
+// builds background of card for each of the different sections
+func modernCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+    content()
+        .padding(20)
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(.white.opacity(0.2), lineWidth: 1)
+                }
+        }
+}
+
+// the header for the store name and image
+func sectionHeader(_ title: String, icon: String) -> some View {
+    HStack(spacing: 8) {
+        Image(systemName: icon)
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundColor(.blue)
+        
+        Text(title)
+            .font(.system(size: 18, weight: .bold))
+            .foregroundColor(.primary)
+    }
+}
+
+// shows address and hours of store
+func infoRow(icon: String, text: String) -> some View {
+    HStack(spacing: 12) {
+        Image(systemName: icon)
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(.blue)
+            .frame(width: 16)
+        
+        Text(text)
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(.primary)
+    }
+}
+
+// card for the deals
+func dealCard(deal: Deals) -> some View {
+    HStack(spacing: 12) {
+        Image(systemName: "tag.fill")
+            .font(.system(size: 16))
+            .foregroundColor(.orange)
+        
+        VStack(alignment: .leading, spacing: 4) {
+            Text(deal.description)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.primary)
+            
+            Text(deal.category)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.secondary)
+        }
+        
+        Spacer()
+    }
+    .padding(12)
+    .background {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(Color.orange.opacity(0.1))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+            }
+    }
+}
+
+// card for the items
+func itemCard(item: storeItem) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+        // Mock item image
+        RoundedRectangle(cornerRadius: 8)
+            .fill(LinearGradient(
+                colors: [.green.opacity(0.2), .blue.opacity(0.2)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ))
+            .frame(height: 80)
+            .overlay {
+                Image(systemName: "leaf.fill")
+                    .font(.system(size: 24))
+                    .foregroundColor(.green.opacity(0.7))
+            }
+        
+        VStack(alignment: .leading, spacing: 4) {
+            Text(item.name)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.primary)
+                .lineLimit(2)
+            
+            Text(item.brand)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+            
+            Text("$\(String(format: "%.2f", item.price))")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(.green)
+        }
+    }
+    .padding(12)
+    .background {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(Color(.systemBackground))
+            .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
     }
 }
 

@@ -20,6 +20,7 @@
 		34F26B2A2E342D5F00E28034 /* apiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B282E342D5F00E28034 /* apiClient.swift */; };
 		34F26B2B2E342D5F00E28034 /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B292E342D5F00E28034 /* KeychainManager.swift */; };
 		34F26B2D2E342DA600E28034 /* mapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B2C2E342DA600E28034 /* mapView.swift */; };
+		F67C47B62E37EB6100B08DFA /* homePageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F67C47B52E37EB6100B08DFA /* homePageView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,6 +60,7 @@
 		F160D1B42E32BE9A002241BB /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		F160D1B52E32BF6A002241BB /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		F160D1B72E32C18E002241BB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F67C47B52E37EB6100B08DFA /* homePageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = homePageView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +113,7 @@
 		34635F742DFE8E7B006B3058 /* frontend */ = {
 			isa = PBXGroup;
 			children = (
+				F67C47B52E37EB6100B08DFA /* homePageView.swift */,
 				34F26B282E342D5F00E28034 /* apiClient.swift */,
 				34F26B292E342D5F00E28034 /* KeychainManager.swift */,
 				F160D1B72E32C18E002241BB /* Info.plist */,
@@ -230,7 +233,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 34635F6D2DFE8E7B006B3058 /* Build configuration list for PBXProject "frontEnd" */;
+			buildConfigurationList = 34635F6D2DFE8E7B006B3058 /* Build configuration list for PBXProject "frontend" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -285,6 +288,7 @@
 				34F26B2D2E342DA600E28034 /* mapView.swift in Sources */,
 				34F26B272E3181FB00E28034 /* SignUpView.swift in Sources */,
 				34F26B2B2E342D5F00E28034 /* KeychainManager.swift in Sources */,
+				F67C47B62E37EB6100B08DFA /* homePageView.swift in Sources */,
 				34635F7A2DFE8E7B006B3058 /* Item.swift in Sources */,
 				34F26B2A2E342D5F00E28034 /* apiClient.swift in Sources */,
 				3406747E2E15F8050077F381 /* LoginView.swift in Sources */,
@@ -595,7 +599,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		34635F6D2DFE8E7B006B3058 /* Build configuration list for PBXProject "frontEnd" */ = {
+		34635F6D2DFE8E7B006B3058 /* Build configuration list for PBXProject "frontend" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				34635F962DFE8E7D006B3058 /* Debug */,
