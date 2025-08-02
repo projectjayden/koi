@@ -2,45 +2,6 @@ import SwiftUI
 import MapKit
 import CoreLocation
 
-// BELOW HAS STRUCTS AND ENUMS FOR THE DIFF DATA TYPES //
-
-struct SelectedStore {
-    var mapItem: MKMapItem
-    var details: StoreDetails
-}
-
-struct storeItem {
-    var name: String
-    var brand: String
-    var price: Double
-    var quantity: Int
-}
-
-enum DealType {
-    case percentageOff(Int)
-    case buyXGetYPercentOff(Int, Int)
-    case buyXGetY(Int, Int)
-}
-
-struct Deals {
-    var type: DealType
-    var category: String
-    var itemsAppliedTo: [storeItem]
-    var description: String
-}
-
-struct StoreDetails {
-    var storeTitle: String
-    var storeDescription: String
-    var storeRating: Double
-    var storeAddress: String
-    var storeImages: [String] // Changed to String URLs for mock data
-    var storeDeals: [Deals] // Changed to array for multiple deals
-    var itemList: [storeItem]
-    var storeHours: String
-    var phoneNumber: String
-}
-
 struct MapView: View {
     @State private var position: MapCameraPosition = .region(MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),

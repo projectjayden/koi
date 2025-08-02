@@ -16,12 +16,18 @@
 		34635F892DFE8E7D006B3058 /* frontendTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34635F882DFE8E7D006B3058 /* frontendTests.swift */; };
 		34635F932DFE8E7D006B3058 /* frontendUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34635F922DFE8E7D006B3058 /* frontendUITests.swift */; };
 		34635F952DFE8E7D006B3058 /* frontendUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34635F942DFE8E7D006B3058 /* frontendUITestsLaunchTests.swift */; };
+		347DBEC42E3B30950089EC26 /* KoiBackgroundView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 347DBEC32E3B30950089EC26 /* KoiBackgroundView.swift */; };
+		34F1E5BF2E3C81E400E758E9 /* structs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F1E5BE2E3C81E400E758E9 /* structs.swift */; };
 		34F26B272E3181FB00E28034 /* SignUpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B262E3181FB00E28034 /* SignUpView.swift */; };
 		34F26B2A2E342D5F00E28034 /* apiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B282E342D5F00E28034 /* apiClient.swift */; };
 		34F26B2B2E342D5F00E28034 /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B292E342D5F00E28034 /* KeychainManager.swift */; };
 		34F26B2D2E342DA600E28034 /* mapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B2C2E342DA600E28034 /* mapView.swift */; };
+<<<<<<< HEAD
+		34F26B312E39B9B700E28034 /* profileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B302E39B9B700E28034 /* profileView.swift */; };
+=======
 		F67752DF2E3D6DFD00D0C2E5 /* shopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F67752DE2E3D6DF800D0C2E5 /* shopView.swift */; };
 		F139B1A32E3DBBDE00E4170C /* functions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F139B1A22E3DBBD500E4170C /* functions.swift */; };
+>>>>>>> main
 		F67C47B62E37EB6100B08DFA /* homePageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F67C47B52E37EB6100B08DFA /* homePageView.swift */; };
 /* End PBXBuildFile section */
 
@@ -55,10 +61,13 @@
 		34635F8E2DFE8E7D006B3058 /* frontendUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = frontendUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		34635F922DFE8E7D006B3058 /* frontendUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = frontendUITests.swift; sourceTree = "<group>"; };
 		34635F942DFE8E7D006B3058 /* frontendUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = frontendUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		347DBEC32E3B30950089EC26 /* KoiBackgroundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KoiBackgroundView.swift; sourceTree = "<group>"; };
+		34F1E5BE2E3C81E400E758E9 /* structs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = structs.swift; sourceTree = "<group>"; };
 		34F26B262E3181FB00E28034 /* SignUpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignUpView.swift; sourceTree = "<group>"; };
 		34F26B282E342D5F00E28034 /* apiClient.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = apiClient.swift; sourceTree = "<group>"; };
 		34F26B292E342D5F00E28034 /* KeychainManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = KeychainManager.swift; sourceTree = "<group>"; };
 		34F26B2C2E342DA600E28034 /* mapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = mapView.swift; sourceTree = "<group>"; };
+		34F26B302E39B9B700E28034 /* profileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = profileView.swift; sourceTree = "<group>"; };
 		F139B1A22E3DBBD500E4170C /* functions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = functions.swift; sourceTree = "<group>"; };
 		F160D1B42E32BE9A002241BB /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		F160D1B52E32BF6A002241BB /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
@@ -131,6 +140,9 @@
 				34635F7D2DFE8E7D006B3058 /* Preview Content */,
 				3406747D2E15F8050077F381 /* LoginView.swift */,
 				34F26B262E3181FB00E28034 /* SignUpView.swift */,
+				34F26B302E39B9B700E28034 /* profileView.swift */,
+				34F1E5BE2E3C81E400E758E9 /* structs.swift */,
+				347DBEC32E3B30950089EC26 /* KoiBackgroundView.swift */,
 			);
 			path = frontend;
 			sourceTree = "<group>";
@@ -239,7 +251,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 34635F6D2DFE8E7B006B3058 /* Build configuration list for PBXProject "frontend" */;
+			buildConfigurationList = 34635F6D2DFE8E7B006B3058 /* Build configuration list for PBXProject "frontEnd" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -298,9 +310,12 @@
 				F67C47B62E37EB6100B08DFA /* homePageView.swift in Sources */,
 				34635F7A2DFE8E7B006B3058 /* Item.swift in Sources */,
 				34F26B2A2E342D5F00E28034 /* apiClient.swift in Sources */,
+				347DBEC42E3B30950089EC26 /* KoiBackgroundView.swift in Sources */,
+				34F1E5BF2E3C81E400E758E9 /* structs.swift in Sources */,
 				3406747E2E15F8050077F381 /* LoginView.swift in Sources */,
 				F67752DF2E3D6DFD00D0C2E5 /* shopView.swift in Sources */,
 				34635F762DFE8E7B006B3058 /* frontendApp.swift in Sources */,
+				34F26B312E39B9B700E28034 /* profileView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -607,7 +622,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		34635F6D2DFE8E7B006B3058 /* Build configuration list for PBXProject "frontend" */ = {
+		34635F6D2DFE8E7B006B3058 /* Build configuration list for PBXProject "frontEnd" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				34635F962DFE8E7D006B3058 /* Debug */,
