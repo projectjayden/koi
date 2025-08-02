@@ -22,12 +22,9 @@
 		34F26B2A2E342D5F00E28034 /* apiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B282E342D5F00E28034 /* apiClient.swift */; };
 		34F26B2B2E342D5F00E28034 /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B292E342D5F00E28034 /* KeychainManager.swift */; };
 		34F26B2D2E342DA600E28034 /* mapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B2C2E342DA600E28034 /* mapView.swift */; };
-<<<<<<< HEAD
 		34F26B312E39B9B700E28034 /* profileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B302E39B9B700E28034 /* profileView.swift */; };
-=======
 		F67752DF2E3D6DFD00D0C2E5 /* shopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F67752DE2E3D6DF800D0C2E5 /* shopView.swift */; };
 		F139B1A32E3DBBDE00E4170C /* functions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F139B1A22E3DBBD500E4170C /* functions.swift */; };
->>>>>>> main
 		F67C47B62E37EB6100B08DFA /* homePageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F67C47B52E37EB6100B08DFA /* homePageView.swift */; };
 /* End PBXBuildFile section */
 
