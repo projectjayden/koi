@@ -40,10 +40,11 @@ struct homePageView: View {
                 }
                 //Stuff on the Right
                 ZStack(alignment: .center){
-                    HStack{
-                        Image(systemName: "mappin.and.ellipse")
+                    NavigationLink(destination: shopView()) {
+                        Image(systemName: "cart")
                             .foregroundColor(Color(red:0.5, green:0.4, blue:0.8))
-                        Text("Map Location??, Address? Idk")
+                        Text("Shop")
+                            .foregroundColor(Color(red:0.5, green:0.4, blue:0.8))
                     }
                 }
                 .frame(maxHeight: .infinity)
@@ -125,19 +126,32 @@ struct homePageView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                      HStack(spacing: 20) {
                          ForEach(viewModel.recipes) { meal in // For Loop goes through 10 recipes
-                             VStack {
+                             ZStack(alignment: .bottomLeading) {
                                  AsyncImage(url: URL(string: meal.strMealThumb)) { phase in
                                      if let image = phase.image {
-                                         image.resizable()
+                                         image
+                                             .resizable()
+                                             .aspectRatio(contentMode: .fill)
                                      } else if phase.error != nil {
-                                         Color.red.frame(width: 210, height: 280)
+                                         Color.red
                                      } else {
                                          ProgressView()
-                                             .frame(width: 210, height: 180)
                                      }
                                  }
                                  .frame(width: 210, height: 180)
                                  .cornerRadius(8)
+                                 .clipped()
+                                 
+                                 Text(meal.strMeal)
+                                     .foregroundColor(.white)
+                                     .font(.system(size: 15, weight: .bold))
+                                     .lineLimit(2)
+                                     .multilineTextAlignment(.leading)
+                                     .padding(8)
+                                     .frame(maxWidth: 194) // 210 - 16 padding
+                                     .background(
+                                        Color(red: 0.3, green: 0.2, blue: 0.6)
+                                     )
                              }
                              .onTapGesture {
                                  selectedRecipe = meal
@@ -168,21 +182,26 @@ struct homePageView: View {
 struct tabsView: View {
     var body: some View{
         TabView {
-            homePageView()
+            NavigationStack {
+                homePageView()
+            }
                 .tabItem {
                     Image(systemName: "house")
                     Text("Home")
                 }
-            
-            MapView()
+            NavigationStack {
+                MapView()
+            }
                 .tabItem{
                     Image(systemName: "map")
                     Text("Map")
                 }
-            Spacer() //settingsView()
+            NavigationStack {
+                Spacer() //profileView()
+            }
                 .tabItem {
                     Image(systemName: "gear")
-                    Text("Settings")
+                    Text("Profile")
                 }
         }
         .accentColor(Color(red: 0.4, green: 0.3, blue: 0.7))
@@ -203,84 +222,74 @@ struct mealResponse: Codable {
     let meals: [Meal]
 }
 
-// Recipe object
 struct Meal: Codable, Identifiable {
     let id = UUID()
-
     let strMeal: String
     let strCategory: String
     let strInstructions: String
     let strMealThumb: String
-
-    let strIngredient1: String?
-    let strIngredient2: String?
-    let strIngredient3: String?
-    let strIngredient4: String?
-    let strIngredient5: String?
-    let strIngredient6: String?
-    let strIngredient7: String?
-    let strIngredient8: String?
-    let strIngredient9: String?
-    let strIngredient10: String?
-    let strIngredient11: String?
-    let strIngredient12: String?
-    let strIngredient13: String?
-    let strIngredient14: String?
-    let strIngredient15: String?
-    let strIngredient16: String?
-    let strIngredient17: String?
-    let strIngredient18: String?
-    let strIngredient19: String?
-    let strIngredient20: String?
-
-    let strMeasure1: String?
-    let strMeasure2: String?
-    let strMeasure3: String?
-    let strMeasure4: String?
-    let strMeasure5: String?
-    let strMeasure6: String?
-    let strMeasure7: String?
-    let strMeasure8: String?
-    let strMeasure9: String?
-    let strMeasure10: String?
-    let strMeasure11: String?
-    let strMeasure12: String?
-    let strMeasure13: String?
-    let strMeasure14: String?
-    let strMeasure15: String?
-    let strMeasure16: String?
-    let strMeasure17: String?
-    let strMeasure18: String?
-    let strMeasure19: String?
-    let strMeasure20: String?
-
-    var ingredients: [(name: String, measure: String)] {
-        var result: [(String, String)] = []
-        let ingredientList = [
-            strIngredient1, strIngredient2, strIngredient3, strIngredient4, strIngredient5,
-            strIngredient6, strIngredient7, strIngredient8, strIngredient9, strIngredient10,
-            strIngredient11, strIngredient12, strIngredient13, strIngredient14, strIngredient15,
-            strIngredient16, strIngredient17, strIngredient18, strIngredient19, strIngredient20
-        ]
-
-        let measureList = [
-            strMeasure1, strMeasure2, strMeasure3, strMeasure4, strMeasure5,
-            strMeasure6, strMeasure7, strMeasure8, strMeasure9, strMeasure10,
-            strMeasure11, strMeasure12, strMeasure13, strMeasure14, strMeasure15,
-            strMeasure16, strMeasure17, strMeasure18, strMeasure19, strMeasure20
-        ]
-
-        for (ingredient, measure) in zip(ingredientList, measureList) {
-            if let ingredient = ingredient?.trimmingCharacters(in: .whitespacesAndNewlines),
-               let measure = measure?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !ingredient.isEmpty {
-                result.append((ingredient, measure))
-            }
+    
+    // Store ingredients and measures as arrays
+    private let ingredientData: [String?]
+    private let measureData: [String?]
+    
+    enum CodingKeys: String, CodingKey {
+        case strMeal, strCategory, strInstructions, strMealThumb
+        // No need to list all ingredient/measure keys here
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        strMeal = try container.decode(String.self, forKey: .strMeal)
+        strCategory = try container.decode(String.self, forKey: .strCategory)
+        strInstructions = try container.decode(String.self, forKey: .strInstructions)
+        strMealThumb = try container.decode(String.self, forKey: .strMealThumb)
+        
+        // Dynamically decode ingredients and measures
+        let allKeys = try decoder.container(keyedBy: DynamicCodingKey.self)
+        var ingredients: [String?] = []
+        var measures: [String?] = []
+        
+        for i in 1...20 {
+            let ingredientKey = DynamicCodingKey(stringValue: "strIngredient\(i)")!
+            let measureKey = DynamicCodingKey(stringValue: "strMeasure\(i)")!
+            
+            let ingredient = try? allKeys.decodeIfPresent(String.self, forKey: ingredientKey)
+            let measure = try? allKeys.decodeIfPresent(String.self, forKey: measureKey)
+            
+            ingredients.append(ingredient)
+            measures.append(measure)
         }
-        return result
+        
+        self.ingredientData = ingredients
+        self.measureData = measures
+    }
+    
+    var ingredients: [(name: String, measure: String)] {
+        return zip(ingredientData, measureData).compactMap { ingredient, measure in
+            guard let ingredient = ingredient?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !ingredient.isEmpty else { return nil }
+            
+            let cleanMeasure = measure?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return (ingredient, cleanMeasure)
+        }
     }
 }
 
+// Helper for dynamic key decoding
+struct DynamicCodingKey: CodingKey {
+    var stringValue: String
+    var intValue: Int?
+    
+    init?(stringValue: String) {
+        self.stringValue = stringValue
+    }
+    
+    init?(intValue: Int) {
+        return nil
+    }
+}
 
 class recipesViewModel: ObservableObject {
     @Published var recipes: [Meal] = []
@@ -317,6 +326,8 @@ class recipesViewModel: ObservableObject {
 
 struct recipeSheet: View {
     let recipe: Meal
+    @State private var isFavorited = false
+    @State private var favorites: [Meal] = []
     
     @Environment(\.dismiss) private var dismiss
     
@@ -364,7 +375,7 @@ struct recipeSheet: View {
                         }
                         .padding(.horizontal)
                         
-                        // Category Badge
+                        // Category Badge and Favorite Button
                         HStack {
                             Label(recipe.strCategory, systemImage: "tag.fill")
                                 .font(.subheadline)
@@ -383,7 +394,18 @@ struct recipeSheet: View {
                                             endPoint: .bottomTrailing
                                         ))
                                 )
+                            
                             Spacer()
+                            
+                            // Favorite Button
+                            Button(action: toggleFavorite) {
+                                Image(systemName: isFavorited ? "heart.fill" : "heart")
+                                    .font(.title2)
+                                    .foregroundColor(isFavorited ? .red : .gray)
+                                    .animation(.easeInOut(duration: 0.2), value: isFavorited)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
                         }
                         .padding(.horizontal)
                     }
@@ -477,7 +499,21 @@ struct recipeSheet: View {
                     .foregroundColor(.blue)
                 }
             }
+            .onAppear {
+                // MARK: add request to get favorite list
+                
+                isFavorited = favorites.contains(where: { $0.id == recipe.id })
+            }
         }
+    }
+    
+    private func toggleFavorite() {
+        if isFavorited {
+            favorites.removeAll{$0.id == recipe.id}
+        } else {
+            favorites.append(recipe)
+        }
+        isFavorited.toggle()
     }
 }
 
@@ -677,4 +713,3 @@ struct dealView : View {
 #Preview {
     tabsView()
 }
-
