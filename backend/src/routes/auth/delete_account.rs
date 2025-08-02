@@ -10,7 +10,7 @@ use crate::utils::db::Db;
 ///
 /// **Request method**: GET
 ///
-/// **Input**: N/A
+/// **Input**: None
 ///
 /// **Output**:
 /// - 200 (success)

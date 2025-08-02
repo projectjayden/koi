@@ -6,7 +6,7 @@ use rocket::http::Status;
 ///
 /// **Request method**: GET
 ///
-/// **Input**: N/A
+/// **Input**: None
 ///
 /// **Output**:
 /// - 200 (success)

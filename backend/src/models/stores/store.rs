@@ -1,7 +1,6 @@
 use rocket_db_pools::sqlx::{ self, Row, SqliteConnection, Sqlite, Error };
+use crate::models::{ stores::{ Deal, Item }, users::Review };
 use rocket::{ serde::{ Deserialize, Serialize } };
-
-use crate::models::stores::{ Deal, Item, StoreReview };
 
 #[derive(Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
@@ -195,7 +194,7 @@ impl Store {
   /// Gets the store's reviews.
   ///
   /// Returns `(total_reviews, reviews)``
-  pub async fn get_reviews(&self, db: &mut SqliteConnection, limit: u32, offset: u32) -> (usize, Vec<StoreReview>) {
+  pub async fn get_reviews(&self, db: &mut SqliteConnection, limit: u32, offset: u32) -> (usize, Vec<Review>) {
     sqlx
       ::query("SELECT * FROM store_reviews WHERE user_uuid = $1")
       .bind(&self.uuid)
@@ -206,7 +205,7 @@ impl Store {
           return Err(Error::RowNotFound);
         }
 
-        let mut reviews: Vec<StoreReview> = vec![];
+        let mut reviews: Vec<Review> = vec![];
         let reviews_to_get: u32 = offset + limit;
         for i in offset..reviews_to_get {
           let row: &sqlx::sqlite::SqliteRow = rows.get(i as usize).unwrap();
@@ -216,7 +215,7 @@ impl Store {
           let store_uuid: String = Self::get_from_row(row, "store_uuid");
           let rating: f32 = Self::get_from_row(row, "rating");
           let description: String = Self::get_from_row(row, "description");
-          reviews.push(StoreReview::new(id, user_uuid, store_uuid, rating, description));
+          reviews.push(Review::new(id, user_uuid, store_uuid, rating, description));
         }
         Ok((num_of_reviews, reviews))
       })

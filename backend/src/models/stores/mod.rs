@@ -1,4 +1,3 @@
-pub mod review;
 pub mod store;
 pub mod deal;
 pub mod item;
@@ -9,5 +8,3 @@ pub use item::Item as Item;
 pub use item::SerializedItem as SerializedItem;
 pub use deal::Deal as Deal;
 pub use deal::SerializedDeal as SerializedDeal;
-pub use review::StoreReview as StoreReview;
-pub use review::SerializedStoreReview as SerializedStoreReview;

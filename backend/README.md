@@ -26,7 +26,7 @@ ED25519_PUBLIC_KEY=
 6. Run the server
 
 ```sh
-watchexec -r -e rs -- cargo run
+watchexec -r -e rs -- "cargo run --bin koi-backend"
 ```
 
 > \[!NOTE\]

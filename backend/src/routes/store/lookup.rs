@@ -1,5 +1,6 @@
-use crate::models::stores::{ Store, SerializedStore, SerializedItem, SerializedDeal, SerializedStoreReview, StoreReview };
+use crate::models::stores::{ Store, SerializedStore, SerializedItem, SerializedDeal };
 use crate::{ guards::auth::AuthenticatedUser, utils::db::Db };
+use crate::models::users::{ SerializedReview, Review };
 use rocket::{ http::Status, serde::json::Json };
 use rocket::serde::{ Deserialize, Serialize };
 use rocket_db_pools::Connection;
@@ -39,7 +40,7 @@ pub struct LookupOutput {
   pub store: Option<SerializedStore>,
   pub items: Option<Vec<SerializedItem>>,
   pub deals: Option<Vec<SerializedDeal>>,
-  pub reviews: Option<Vec<SerializedStoreReview>>,
+  pub reviews: Option<Vec<SerializedReview>>,
   /// Total number of reviews.
   ///
   /// Used for pagination.
@@ -157,7 +158,7 @@ pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, data: Json
     None
   };
 
-  let review_data: Option<(usize, Vec<StoreReview>)> = if data.0.get_reviews { Some((&store).get_reviews(&mut **db, data.0.review_limit.unwrap(), data.0.review_offset.unwrap()).await) } else { None };
+  let review_data: Option<(usize, Vec<Review>)> = if data.0.get_reviews { Some((&store).get_reviews(&mut **db, data.0.review_limit.unwrap(), data.0.review_offset.unwrap()).await) } else { None };
   let (total_reviews, reviews) = match review_data {
     Some((size, reviews)) => {
       (
@@ -165,7 +166,7 @@ pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, data: Json
         Some(
           reviews
             .into_iter()
-            .map(|review: StoreReview| review.serialize())
+            .map(|review: Review| review.serialize())
             .collect()
         ),
       )

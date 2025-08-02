@@ -29,14 +29,17 @@ pub enum InitOutput {
 ///   {
 ///     User: {
 ///       uuid: string;
+///       name: string;
+///       bio: string | null;
 ///       email: string;
 ///       last_login: number;
 ///       date_joined: number;
 ///       store_id: number | null;
 ///       is_subscribed: boolean;
-///       deal_alert_active: boolean;
-///       deal_alert_radius: number;
 ///       preferences: string;
+///       allergies: string[];
+///       followers: number;
+///       following: number;
 ///     }
 ///   }
 /// ]
@@ -71,7 +74,7 @@ pub async fn init(mut db: Connection<Db>, user: AuthenticatedUser, _revoke_jwt: 
     .execute(&mut **db).await
     .unwrap();
 
-  let serialized_user: SerializedUser = user.0.serialize();
+  let serialized_user: SerializedUser = user.0.serialize(&mut db).await;
   if user.0.store_uuid.is_none() {
     return Json((generate_jwt(&user.0.uuid).unwrap(), InitOutput::User(serialized_user)));
   }

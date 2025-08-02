@@ -17,7 +17,7 @@ fn collect_rust_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
 }
 
 /// Generate markdown documentation for all routes
-/// 
+///
 /// For documentation for each input field, see the actual file
 pub fn main() -> io::Result<()> {
   let dir: &'static str = "./src/routes";
@@ -37,10 +37,13 @@ pub fn main() -> io::Result<()> {
         while start_index > 0 && !lines[start_index - 1].contains("/// # ") {
           start_index -= 1;
         }
+        start_index -= 1;
 
-        writeln!(md_output, "### File: `{}`", file_path.display())?;
-        for line in &lines[start_index..i] {
+        for (i, line) in lines[start_index..i].iter().enumerate() {
           writeln!(md_output, "{}", line.strip_prefix("///").unwrap_or(line))?;
+          if i == 0 {
+            writeln!(md_output, "### File: `{}`", file_path.display())?;
+          }
         }
         writeln!(md_output)?;
       }

@@ -23,6 +23,11 @@ pub fn not_found() -> &'static str {
   "404 - Not found"
 }
 
+#[catch(418)]
+pub fn im_a_teapot() -> &'static str {
+  "418 - Clown detected"
+}
+
 #[catch(422)]
 pub fn unprocessable_entity() -> &'static str {
   "422 - Wrong or missing fields"

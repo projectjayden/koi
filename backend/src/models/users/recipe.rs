@@ -6,18 +6,22 @@ use rocket::serde::{ Deserialize, Serialize, json::from_str };
 pub struct SerializedRecipe {
   /// Recipe UUID.
   pub uuid: String,
-  /// User UUID of the auhtor of the recipe.
-  pub author_uuid: String,
+  /// User UUID of the author of the recipe.
+  pub user_uuid: String,
   /// Name of the recipe.
   pub name: String,
   /// Ingredients of the recipe.
   /// 
   /// `(name, amount, unit)`
   pub ingredients: Vec<(String, f32, String)>,
+  /// Instructions of the recipe.
+  pub instructions: Option<String>,
   /// User-created category of the recipe.
   pub category: Option<String>,
   /// JSON blob of the recipe's image.
-  pub image: Option<String>
+  pub image: Option<String>,
+  /// Number of likes the recipe has.
+  pub likes: u32
 }
 
 #[derive(Deserialize, Serialize)]
@@ -27,14 +31,16 @@ pub struct Recipe {
   id: u32,
   /// Recipe UUID.
   pub uuid: String,
-  /// User UUID of the auhtor of the recipe.
-  pub author_uuid: String,
+  /// User UUID of the author of the recipe.
+  pub user_uuid: String,
   /// Name of the recipe.
   pub name: String,
   /// Ingredients of the recipe.
   /// 
   /// `(name, amount, unit)`
   pub ingredients: Vec<(String, f32, String)>,
+  /// Instructions of the recipe.
+  pub instructions: Option<String>,
   /// User-created category of the recipe.
   pub category: Option<String>,
   /// JSON blob of the recipe's image.
@@ -53,18 +59,20 @@ impl Recipe {
       .and_then(|row: sqlx::sqlite::SqliteRow| {
         let id: u32 = Self::get_from_row(&row, "id");
         let uuid: String = Self::get_from_row(&row, "uuid");
-        let author_uuid: String = Self::get_from_row(&row, "author_uuid");
+        let user_uuid: String = Self::get_from_row(&row, "user_uuid");
         let name: String = Self::get_from_row(&row, "name");
         let ingredients: String = Self::get_from_row(&row, "ingredients");
         let ingredients: Vec<(String, f32, String)> = from_str(&ingredients).unwrap();
+        let instructions: Option<String> = Self::get_from_row(&row, "instructions");
         let category: Option<String> = Self::get_from_row(&row, "category");
         let image: Option<String> = Self::get_from_row(&row, "image");
         Ok(Self {
           id,
           uuid,
-          author_uuid,
+          user_uuid,
           name,
           ingredients,
+          instructions,
           category,
           image
         })
@@ -72,19 +80,31 @@ impl Recipe {
       .ok()
   }
 
-  pub fn serialize(&self) -> SerializedRecipe {
+  pub async fn serialize(&self, db: &mut SqliteConnection) -> SerializedRecipe {
+    let likes: (u32,) = sqlx::query_as("SELECT COUNT(*) FROM recipes_liked WHERE recipe_uuid = $1").bind(&self.uuid).fetch_one(&mut *db).await.unwrap();
+
     SerializedRecipe {
       uuid: self.uuid.clone(),
-      author_uuid: self.author_uuid.clone(),
+      user_uuid: self.user_uuid.clone(),
       name: self.name.clone(),
       ingredients: self.ingredients.clone(),
+      instructions: self.instructions.clone(),
       category: self.category.clone(),
-      image: self.image.clone()
+      image: self.image.clone(),
+      likes: likes.0
     }
   }
 
-  pub async fn get_likes(&self, db: &mut SqliteConnection) -> Option<u32> {
-    let likes: (u32,) = sqlx::query_as("SELECT COUNT(*) FROM recipes_liked WHERE recipe_uuid = $1").bind(&self.uuid).fetch_one(&mut *db).await.unwrap();
-    Some(likes.0)
+  pub fn from_data(id: u32, uuid: String, user_uuid: String, name: String, ingredients: Vec<(String, f32, String)>, instructions: Option<String>, category: Option<String>, image: Option<String>) -> Self {
+    Self {
+      id,
+      uuid,
+      user_uuid,
+      name,
+      ingredients,
+      instructions,
+      category,
+      image
+    }
   }
 }
