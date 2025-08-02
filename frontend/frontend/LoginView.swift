@@ -51,6 +51,10 @@ enum AuthError: Error, LocalizedError {
     }
 }
 
+struct LoginResponse: Decodable {
+    let token: String
+}
+
 // MARK: - Network Manager
 @MainActor
 class NetworkManager: ObservableObject {
@@ -70,43 +74,21 @@ class NetworkManager: ObservableObject {
     
     // MARK: - Login Function
     func login(email: String, password: String) async throws {
-        guard let url = URL(string: "\(baseURL)/auth/login") else {
-            throw AuthError.invalidURL
-        }
-        
-        let loginRequest = LoginRequest(email: email, password: password)
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        do {
-            request.httpBody = try JSONEncoder().encode(loginRequest)
-        } catch {
-            throw AuthError.networkError(error)
-        }
-        
-        do {
-            let (_, response) = try await session.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw AuthError.serverError
-            }
-            
-            switch httpResponse.statusCode {
-            case 200:
-                return
-            case 401:
-                throw AuthError.invalidCredentials
-            default:
-                throw AuthError.serverError
-            }
-            
-        } catch {
-            if error is AuthError {
-                throw error
-            } else {
-                throw AuthError.networkError(error)
+        let network = NetworkService()
+
+        Task {
+            do {
+                // TODO: take email and password values from inputs
+                let response: LoginResponse? = try await network.requestEndpoint(
+                    endpoint: "/auth/login",
+                    method: "POST",
+                    body: ["email": "bob@builder.com", "password": "400kstudentdebt"]
+                )
+                let saved = saveToKeychain(key: "authToken", value: response?.token ?? "")
+                
+                print("Saved:", getFromKeychain(key: "authToken"))
+            } catch {
+                print("Request failed:", error)
             }
         }
         

@@ -88,7 +88,7 @@ impl Deal {
     }
   }
 
-  pub async fn serialize(&self) -> SerializedDeal {
+  pub fn serialize(&self) -> SerializedDeal {
     SerializedDeal {
       uuid: self.uuid.clone(),
       store_uuid: self.store_uuid.clone(),

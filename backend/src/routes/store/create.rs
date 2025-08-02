@@ -7,7 +7,10 @@ use crate::utils::db::Db;
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct CreateData {
+  /// Name of the store.
   name: String,
+  /// Description of the store.
+  description: Option<String>,
   /// GPS coordinate of the store.
   ///
   /// Format: `<latitude>, <longitude>`
@@ -27,6 +30,8 @@ pub struct CreateData {
   /// The first value of each tuple is the open time, the second is the closing time.
   ///
   /// Time should be in 24-hour format, with colons and leading 0s.
+  /// 
+  /// If the store is closed all day, use `("00:00", "23:59")`
   open_hours: Option<[(String, String); 7]>,
 }
 
@@ -39,6 +44,7 @@ pub struct CreateData {
 /// ```ts
 /// {
 ///   name: string;
+///   description?: string;
 ///   geolocation: `${number}, ${number}`;
 ///   phone?: string;
 ///   email?: string;
@@ -81,12 +87,20 @@ pub async fn create(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<
   };
 
   let query_string: &'static str = if open_hours_entered {
-    "INSERT INTO stores (uuid, name, latitude, longitude, phone, email, open_mon, close_mon, open_tue, close_tue, open_wed, close_wed, open_thu, close_thu, open_fri, close_fri, open_sat, close_sat, open_sun, close_sun) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)"
+    "INSERT INTO stores (uuid, name, description, latitude, longitude, phone, email, open_mon, close_mon, open_tue, close_tue, open_wed, close_wed, open_thu, close_thu, open_fri, close_fri, open_sat, close_sat, open_sun, close_sun) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)"
   } else {
-    "INSERT INTO stores (uuid, name, latitude, longitude, phone, email) VALUES ($1, $2, $3, $4, $5, $6)"
+    "INSERT INTO stores (uuid, name, description, latitude, longitude, phone, email) VALUES ($1, $2, $3, $4, $5, $6, $7)"
   };
 
-  let mut insert_query: sqlx::query::Query<'_, Sqlite, _> = sqlx::query(query_string).bind(&uuid).bind(data.0.name).bind(latitude).bind(longitude).bind(data.0.phone).bind(data.0.email);
+  let mut insert_query: sqlx::query::Query<'_, Sqlite, _> = sqlx
+    ::query(query_string)
+    .bind(&uuid)
+    .bind(data.0.name)
+    .bind(data.0.description)
+    .bind(latitude)
+    .bind(longitude)
+    .bind(data.0.phone)
+    .bind(data.0.email);
 
   let open_hours: [(String, String); 7] = data.0.open_hours.clone().unwrap_or_default();
   if open_hours_entered {

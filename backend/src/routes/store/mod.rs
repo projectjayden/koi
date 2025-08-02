@@ -1,12 +1,10 @@
 pub mod lookup;
 pub mod create;
-// pub mod rate;
 
 pub use lookup::lookup as Lookup;
 pub use create::create as Create;
-// pub use rate::rate as Rate;
 
-use crate::models::stores::{ Store, Item, Deal, SerializedStore, SerializedStoreReview, StoreReview };
+use crate::models::stores::{ Store, SerializedItem, SerializedDeal, SerializedStore, StoreReview };
 use crate::guards::{ auth::AuthenticatedUser, store_auth::AuthenticatedStore };
 use rocket::{ http::Status, serde::{ json::Json, Deserialize } };
 use rocket_db_pools::Connection;
@@ -78,18 +76,42 @@ pub async fn store_info(mut db: Connection<Db>, _user: AuthenticatedUser, store:
   }
   let store: Store = store.unwrap();
 
-  let items: Option<Vec<Item>> = if data.0.get_items { Some((&store).get_items(&mut **db).await) } else { None };
+  let items: Option<Vec<SerializedItem>> = if data.0.get_items {
+    Some(
+      (&store)
+        .get_items(&mut **db).await
+        .into_iter()
+        .map(|item| item.serialize())
+        .collect()
+    )
+  } else {
+    None
+  };
 
-  let deals: Option<Vec<Deal>> = if data.0.get_deals { Some((&store).get_deals(&mut **db).await) } else { None };
+  let deals: Option<Vec<SerializedDeal>> = if data.0.get_deals {
+    Some(
+      (&store)
+        .get_deals(&mut **db).await
+        .into_iter()
+        .map(|deal| deal.serialize())
+        .collect()
+    )
+  } else {
+    None
+  };
 
   let review_data: Option<(usize, Vec<StoreReview>)> = if data.0.get_reviews { Some((&store).get_reviews(&mut **db, data.0.review_limit.unwrap(), data.0.review_offset.unwrap()).await) } else { None };
   let (total_reviews, reviews) = match review_data {
     Some((size, reviews)) => {
-      let mut serialized_reviews: Vec<SerializedStoreReview> = vec![];
-      for review in reviews {
-        serialized_reviews.push(review.serialize().await);
-      }
-      (Some(size), Some(serialized_reviews))
+      (
+        Some(size),
+        Some(
+          reviews
+            .into_iter()
+            .map(|review: StoreReview| review.serialize())
+            .collect()
+        ),
+      )
     }
     None => {
       if data.0.get_reviews {

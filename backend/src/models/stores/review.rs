@@ -32,7 +32,7 @@ impl StoreReview {
     }
   }
 
-  pub async fn serialize(&self) -> SerializedStoreReview {
+  pub fn serialize(&self) -> SerializedStoreReview {
     SerializedStoreReview {
       user_uuid: self.user_uuid.clone(),
       store_uuid: self.store_uuid.clone(),

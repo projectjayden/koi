@@ -3,3 +3,4 @@ Cargo.lock
 .env
 db.sqlite
 *.sqlite-journal
+docs.md

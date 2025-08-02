@@ -63,11 +63,10 @@ impl Store {
   pub async fn new(db: &mut SqliteConnection, uuid: String) -> Option<Self> {
     sqlx
       ::query("SELECT * FROM stores WHERE uuid = $1")
-      .bind(uuid)
+      .bind(&uuid)
       .fetch_one(db).await
       .and_then(|row: sqlx::sqlite::SqliteRow| {
         let id: u32 = Self::get_from_row::<u32>(&row, "id");
-        let uuid: String = Self::get_from_row(&row, "uuid");
         let name: String = Self::get_from_row(&row, "name");
         let latitude: f32 = Self::get_from_row(&row, "latitude");
         let longitude: f32 = Self::get_from_row(&row, "longitude");
@@ -194,8 +193,6 @@ impl Store {
   }
 
   /// Gets the store's reviews.
-  ///
-  /// ! These reviews are of users' reviews of the store.
   ///
   /// Returns `(total_reviews, reviews)``
   pub async fn get_reviews(&self, db: &mut SqliteConnection, limit: u32, offset: u32) -> (usize, Vec<StoreReview>) {

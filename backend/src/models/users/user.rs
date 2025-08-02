@@ -1,12 +1,16 @@
 use rocket_db_pools::sqlx::{ self, Row, Sqlite, SqliteConnection, Error };
 use rocket::serde::{ Deserialize, Serialize };
-use crate::models::users::UserReview;
+use crate::models::stores::StoreReview;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct SerializedUser {
   /// User UUID.
   pub uuid: String,
+  /// User's name.
+  pub name: String,
+  /// User's biography for their profile.
+  pub bio: String,
   /// User's email address.
   pub email: String,
   /// The last time the user has logged in, as a unix timestamp.
@@ -17,12 +21,6 @@ pub struct SerializedUser {
   pub store_uuid: Option<String>,
   /// Whether the user is a paying subscriber. Defaults to `false`.
   pub is_subscribed: bool,
-  /// Whether the user has deal alerts enabled. Defaults to `true`.
-  pub deal_alert_active: bool,
-  /// Radius of the user's deal alerts, in miles. Defaults to `20`. Min of `1`, max of `200`.
-  pub deal_alert_radius: u8,
-  /// Text string of any user preferences (halal, vegan, etc). Used with LLM to generate recommendations.
-  pub preferences: String,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -32,6 +30,10 @@ pub struct User {
   id: u32,
   /// User UUID.
   pub uuid: String,
+  /// User's name.
+  pub name: String,
+  /// User's biography for their profile.
+  pub bio: String,
   /// User's email address.
   pub email: String,
   /// User's encrypted password.
@@ -44,12 +46,6 @@ pub struct User {
   pub store_uuid: Option<String>,
   /// Whether the user is a paying subscriber. Defaults to `false`.
   pub is_subscribed: bool,
-  /// Whether the user has deal alerts enabled. Defaults to `true`.
-  pub deal_alert_active: bool,
-  /// Radius of the user's deal alerts, in miles. Defaults to `20`. Min of `1`, max of `200`.
-  pub deal_alert_radius: u8,
-  /// Text string of any user preferences (halal, vegan, etc). Used with LLM to generate recommendations.
-  pub preferences: String,
 }
 impl User {
   fn get_from_row<'a, T: sqlx::Decode<'a, Sqlite> + sqlx::Type<Sqlite>>(row: &'a sqlx::sqlite::SqliteRow, column: &str) -> T {
@@ -60,32 +56,29 @@ impl User {
   pub async fn new(db: &mut SqliteConnection, uuid: String) -> Option<Self> {
     sqlx
       ::query("SELECT * FROM users WHERE uuid = $1")
-      .bind(uuid)
+      .bind(&uuid)
       .fetch_one(db).await
       .and_then(|row: sqlx::sqlite::SqliteRow| {
         let id: u32 = Self::get_from_row(&row, "id");
-        let uuid: String = Self::get_from_row(&row, "uuid");
+        let name: String = Self::get_from_row(&row, "name");
+        let bio: String = Self::get_from_row(&row, "bio");
         let email: String = Self::get_from_row(&row, "email");
         let password: String = Self::get_from_row(&row, "password");
         let last_login: u32 = Self::get_from_row(&row, "last_login");
         let date_joined: u32 = Self::get_from_row(&row, "date_joined");
         let store_uuid: Option<String> = Self::get_from_row(&row, "store_uuid");
         let is_subscribed: u8 = Self::get_from_row(&row, "is_subscribed");
-        let deal_alert_active: u8 = Self::get_from_row(&row, "deal_alert_active");
-        let deal_alert_radius: u8 = Self::get_from_row(&row, "deal_alert_radius");
-        let preferences: String = Self::get_from_row(&row, "preferences");
         Ok(Self {
           id,
           uuid,
+          name,
+          bio,
           email,
           password,
           last_login,
           date_joined,
           store_uuid,
           is_subscribed: is_subscribed == 1,
-          deal_alert_active: deal_alert_active == 1,
-          deal_alert_radius,
-          preferences,
         })
       })
       .ok()
@@ -94,14 +87,13 @@ impl User {
   pub fn serialize(&self) -> SerializedUser {
     SerializedUser {
       uuid: self.uuid.clone(),
+      name: self.name.clone(),
+      bio: self.bio.clone(),
       email: self.email.clone(),
       last_login: self.last_login,
       date_joined: self.date_joined,
       store_uuid: self.store_uuid.clone(),
       is_subscribed: self.is_subscribed,
-      deal_alert_active: self.deal_alert_active,
-      deal_alert_radius: self.deal_alert_radius,
-      preferences: self.preferences.clone(),
     }
   }
 
@@ -127,14 +119,12 @@ impl User {
       .unwrap()
   }
 
-  /// Gets the user's reviews.
-  ///
-  /// ! These reviews are of stores' reviews of the user.
+  /// Gets the user's reviews left on other stores.
   ///
   /// Returns `(total_reviews, reviews)``
-  pub async fn get_reviews(&self, db: &mut SqliteConnection, limit: u32, offset: u32) -> (usize, Vec<UserReview>) {
+  pub async fn get_reviews(&self, db: &mut SqliteConnection, limit: u32, offset: u32) -> (usize, Vec<StoreReview>) {
     sqlx
-      ::query("SELECT * FROM user_reviews WHERE user_uuid = $1")
+      ::query("SELECT * FROM store_reviews WHERE user_uuid = $1")
       .bind(&self.uuid)
       .fetch_all(db).await
       .and_then(|rows: Vec<sqlx::sqlite::SqliteRow>| {
@@ -143,7 +133,7 @@ impl User {
           return Err(Error::RowNotFound);
         }
 
-        let mut reviews: Vec<UserReview> = vec![];
+        let mut reviews: Vec<StoreReview> = vec![];
         let reviews_to_get: u32 = offset + limit;
         for i in offset..reviews_to_get {
           let row: &sqlx::sqlite::SqliteRow = rows.get(i as usize).unwrap();
@@ -153,7 +143,7 @@ impl User {
           let store_uuid: String = Self::get_from_row(row, "store_uuid");
           let rating: f32 = Self::get_from_row(row, "rating");
           let description: String = Self::get_from_row(row, "description");
-          reviews.push(UserReview::new(id, user_uuid, store_uuid, rating, description));
+          reviews.push(StoreReview::new(id, user_uuid, store_uuid, rating, description));
         }
         Ok((num_of_reviews, reviews))
       })

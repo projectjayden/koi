@@ -63,7 +63,7 @@ impl Item {
     }
   }
 
-  pub async fn serialize(&self) -> SerializedItem {
+  pub fn serialize(&self) -> SerializedItem {
     SerializedItem {
       uuid: self.uuid.clone(),
       name: self.name.clone(),

@@ -28,3 +28,10 @@ ED25519_PUBLIC_KEY=
 ```sh
 watchexec -r -e rs -- cargo run
 ```
+
+> \[!NOTE\]
+> To run scripts in /src/bin, use the following command:
+>
+> ```sh
+> cargo run --bin <script_name> # do not include .rs in script_name
+> ```

@@ -1,5 +1,3 @@
-use rocket::Request;
-
 #[catch(500)]
 pub fn internal_server_error() -> &'static str {
   "500 - An internal server error occurred"
@@ -21,6 +19,11 @@ pub fn forbidden() -> &'static str {
 }
 
 #[catch(404)]
-pub fn not_found(req: &Request) -> &'static str {
+pub fn not_found() -> &'static str {
   "404 - Not found"
+}
+
+#[catch(422)]
+pub fn unprocessable_entity() -> &'static str {
+  "422 - Wrong or missing fields"
 }

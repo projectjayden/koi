@@ -1,7 +1,7 @@
 use base64::{ engine::general_purpose, Engine };
 use jwt_simple::prelude::*;
 
-#[allow(dead_code)]
+/// Generate ED25519 keys for JWT
 pub fn main() {
   let keypair: Ed25519KeyPair = Ed25519KeyPair::generate();
 

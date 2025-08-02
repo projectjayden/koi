@@ -10,11 +10,9 @@ mod guards;
 mod models;
 mod routes;
 mod utils;
-// mod scripts;
 
 #[get("/")]
 fn index() -> Status {
-  // scripts::generate_keys::main();
   Status::NotFound
 }
 
@@ -24,10 +22,10 @@ fn rocket() -> _ {
   rocket
     ::build()
     .attach(utils::db::Db::init())
-    .mount("/", routes![index])
+    .mount("/", routes![index, routes::AASA])
     .mount("/auth", routes![routes::auth::Init, routes::auth::Signup, routes::auth::Login, routes::auth::Logout, routes::auth::ChangePassword, routes::auth::DeleteAccount])
-    .mount("/user", routes![routes::user::user_info, routes::user::Lookup])
+    .mount("/user", routes![routes::user::user_info, routes::user::Lookup, routes::user::Rate])
     .mount("/user/account", routes![routes::user::account::ManageSubscription, routes::user::account::ManageDeals, routes::user::account::AddAllergies, routes::user::account::RemoveAllergies])
     .mount("/store", routes![routes::store::store_info, routes::store::Create, routes::store::Lookup])
-    .register("/", catchers![catchers::bad_request, catchers::unauthorized, catchers::forbidden, catchers::not_found, catchers::internal_server_error])
+    .register("/", catchers![catchers::bad_request, catchers::unauthorized, catchers::forbidden, catchers::not_found, catchers::unprocessable_entity, catchers::internal_server_error])
 }
