@@ -1,4 +1,4 @@
-use crate::models::stores::{ Store, SerializedStore, SerializedItem, SerializedDeal };
+use crate::models::stores::{ Store, SerializedStore, Item, SerializedItem, SerializedDeal };
 use crate::{ guards::auth::AuthenticatedUser, utils::db::Db };
 use crate::models::users::{ SerializedReview, Review };
 use rocket::{ http::Status, serde::json::Json };
@@ -48,6 +48,8 @@ pub struct LookupOutput {
 }
 
 /// # Store Lookup
+/// **DO NOT** use this to look up the store's own information.
+///
 /// **Route**: /store/lookup
 ///
 /// **Request method**: POST
@@ -113,7 +115,7 @@ pub struct LookupOutput {
 ///   total_reviews?: number;
 /// }
 /// ```
-#[post("/lookup", format = "json", data = "<data>")]
+#[post("/lookup", data = "<data>")]
 pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, data: Json<LookupInput>) -> Result<Json<LookupOutput>, Status> {
   // * if get_reviews is true but review_limit or review_offset is missing
   if data.0.get_reviews && (data.0.review_limit.is_none() || data.0.review_offset.is_none()) {
@@ -135,13 +137,14 @@ pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, data: Json
   let store: Store = store.unwrap();
 
   let items: Option<Vec<SerializedItem>> = if data.0.get_items {
-    Some(
-      (&store)
-        .get_items(&mut **db).await
-        .into_iter()
-        .map(|item| item.serialize())
-        .collect()
-    )
+    let unserialized_items: Vec<Item> = (&store).get_items(&mut **db).await;
+
+    let mut serialized_items: Vec<SerializedItem> = vec![];
+    for item in unserialized_items {
+      serialized_items.push(item.serialize(&mut **db).await);
+    }
+
+    Some(serialized_items)
   } else {
     None
   };

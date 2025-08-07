@@ -1,4 +1,6 @@
 use rocket::serde::Serialize;
+use rocket_db_pools::sqlx::{ self, SqliteConnection };
+use crate::utils::functions::get_from_row;
 
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
@@ -100,5 +102,29 @@ impl Deal {
       value_1: self.value_1,
       value_2: self.value_2,
     }
+  }
+
+  pub async fn from_uuid(db: &mut SqliteConnection, uuid: String) -> Option<Self> {
+    sqlx
+      ::query("SELECT * FROM deals WHERE uuid = $1")
+      .bind(uuid)
+      .fetch_one(&mut *db).await
+      .and_then(|row: sqlx::sqlite::SqliteRow| {
+        Ok(
+          Self::new(
+            get_from_row(&row, "id"),
+            get_from_row(&row, "uuid"),
+            get_from_row(&row, "store_uuid"),
+            get_from_row(&row, "name"),
+            get_from_row(&row, "description"),
+            get_from_row(&row, "start_date"),
+            get_from_row(&row, "end_date"),
+            get_from_row(&row, "type"),
+            get_from_row(&row, "value_1"),
+            get_from_row(&row, "value_2")
+          )
+        )
+      })
+      .ok()
   }
 }

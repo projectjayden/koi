@@ -6,24 +6,19 @@ use crate::utils::db::Db;
 /// # Unfollow a User
 /// **Route**: /user/unfollow/<uuid>
 ///
-/// **Request method**: GET
+/// **Request method**: PUT
 ///
 /// **Input**: None
 ///
 /// **Output**:
 /// - 200 (success)
 /// - 418 (trying to unfollow self)
-#[get("/unfollow/<uuid>")]
+#[put("/unfollow/<uuid>")]
 pub async fn unfollow(mut db: Connection<Db>, user: AuthenticatedUser, uuid: &str) -> Status {
   if uuid == user.0.uuid {
     return Status::ImATeapot;
   }
 
-  sqlx
-    ::query("DELETE FROM followers WHERE follower_uuid = $1 AND followed_uuid = $2")
-    .bind(user.0.uuid)
-    .bind(uuid)
-    .execute(&mut **db).await
-    .unwrap();
+  sqlx::query("DELETE FROM followers WHERE follower_uuid = $1 AND followed_uuid = $2").bind(user.0.uuid).bind(uuid).execute(&mut **db).await.unwrap();
   Status::Ok
 }

@@ -51,7 +51,7 @@ pub struct FameInput {
 ///   }[];
 /// ]
 /// ```
-#[post("/get-fame", format = "json", data = "<data>")]
+#[post("/get-fame", data = "<data>")]
 pub async fn get_fame(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<FameInput>) -> Result<Json<(usize, Vec<MiniUser>)>, Status> {
   let limit: u32 = data.0.limit.unwrap_or(20);
   let offset: u32 = data.0.offset.unwrap_or(0);

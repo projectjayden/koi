@@ -1,11 +1,11 @@
 use crate::{ guards::auth::AuthenticatedUser, models::users::{ user::MiniUser, SerializedRecipe } };
 use rocket::{ http::Status, serde::json::Json };
-use rocket_db_pools::{sqlx, Connection};
+use rocket_db_pools::{ sqlx, Connection };
 use crate::utils::db::Db;
 
 /// # User Lookup
 /// **DO NOT** use this to look up the user's own profile.
-/// 
+///
 /// **Route**: /user/<uuid>
 ///
 /// **Request method**: GET
@@ -35,18 +35,14 @@ use crate::utils::db::Db;
 /// ]
 /// ```
 /// - 404 (user not found)
-#[get("/<uuid>", format = "json")]
+#[get("/<uuid>")]
 pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, uuid: &str) -> Result<Json<(MiniUser, usize, Vec<SerializedRecipe>)>, Status> {
-  let user_exists: bool = sqlx::query("SELECT uuid FROM users WHERE uuid = $1")
-  .bind(&uuid)
-  .fetch_one(&mut **db)
-  .await
-  .is_ok();
-  
+  let user_exists: bool = sqlx::query("SELECT uuid FROM users WHERE uuid = $1").bind(&uuid).fetch_one(&mut **db).await.is_ok();
+
   if !user_exists {
     return Err(Status::NotFound);
   }
-  
+
   let user: MiniUser = MiniUser::new(&mut db, uuid.to_string()).await;
   let (total_recipes, recipes) = user.get_recipes(&mut db, 20, 0).await;
 

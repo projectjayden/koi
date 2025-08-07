@@ -1,4 +1,4 @@
-use crate::{ guards::auth::AuthenticatedUser, models::users::{ SerializedReview, Review } };
+use crate::{ guards::{ auth::AuthenticatedUser, store_auth::AuthenticatedStore }, models::users::{ Review, SerializedReview } };
 use rocket::{ http::Status, serde::{ json::Json, Deserialize } };
 use rocket_db_pools::Connection;
 use crate::utils::db::Db;
@@ -17,7 +17,7 @@ pub struct ReviewInput {
 }
 
 /// # Get Reviews
-/// **Route**: /user/get-reviews
+/// **Route**: /store/get-reviews
 ///
 /// **Request method**: POST
 ///
@@ -41,12 +41,12 @@ pub struct ReviewInput {
 ///   }[];
 /// ]
 /// ```
-#[post("/get-reviews", data = "<data>")]
-pub async fn get_reviews(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<ReviewInput>) -> Result<Json<(usize, Vec<SerializedReview>)>, Status> {
+#[post("/get-reviews", format = "json", data = "<data>")]
+pub async fn get_reviews(mut db: Connection<Db>, _user: AuthenticatedUser, store: AuthenticatedStore, data: Json<ReviewInput>) -> Result<Json<(usize, Vec<SerializedReview>)>, Status> {
   let limit: u32 = data.0.limit.unwrap_or(20);
   let offset: u32 = data.0.offset.unwrap_or(0);
 
-  let (total_reviews, reviews) = user.0.get_reviews(&mut db, limit, offset).await;
+  let (total_reviews, reviews) = store.0.get_reviews(&mut db, limit, offset).await;
   let reviews: Vec<SerializedReview> = reviews
     .into_iter()
     .map(|review: Review| review.serialize())

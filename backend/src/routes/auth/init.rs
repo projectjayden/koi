@@ -1,8 +1,4 @@
-use crate::{
-  guards::{ auth::AuthenticatedUser, revoke_jwt::RevokeJWT },
-  models::{ stores::{ SerializedStore, Store }, users::SerializedUser },
-  utils::{ db::Db, functions::get_unix_seconds, jwt::generate_jwt },
-};
+use crate::{ guards::auth::AuthenticatedUser, models::{ stores::{ SerializedStore, Store }, users::SerializedUser }, utils::{ db::Db, functions::get_unix_seconds, jwt::generate_jwt } };
 use rocket_db_pools::{ sqlx, Connection };
 use rocket::serde::{ json::Json, Serialize };
 
@@ -36,7 +32,7 @@ pub enum InitOutput {
 ///       date_joined: number;
 ///       store_id: number | null;
 ///       is_subscribed: boolean;
-///       preferences: string;
+///       preferences: string[];
 ///       allergies: string[];
 ///       followers: number;
 ///       following: number;
@@ -55,6 +51,7 @@ pub enum InitOutput {
 ///       {
 ///         uuid: string;
 ///         name: string;
+///         description: string | null;
 ///         latitude: number;
 ///         longitude: number;
 ///         phone: string | null;
@@ -65,8 +62,8 @@ pub enum InitOutput {
 ///   }
 /// ]
 /// ```
-#[get("/init", format = "json")]
-pub async fn init(mut db: Connection<Db>, user: AuthenticatedUser, _revoke_jwt: RevokeJWT) -> Json<(String, InitOutput)> {
+#[get("/init")]
+pub async fn init(mut db: Connection<Db>, user: AuthenticatedUser) -> Json<(String, InitOutput)> {
   sqlx
     ::query("UPDATE users SET last_login = $1 WHERE uuid = $2")
     .bind(get_unix_seconds() as u32)

@@ -26,11 +26,6 @@ impl<'r> FromRequest<'r> for AuthenticatedUser {
 
       let mut db: sqlx::pool::PoolConnection<sqlx::Sqlite> = request.rocket().state::<Db>().unwrap().acquire().await.unwrap();
 
-      let token_is_revoked: bool = sqlx::query("SELECT * FROM revoked_tokens WHERE uuid = $1").bind(&claims.jwt_id).fetch_one(&mut *db).await.is_ok();
-      if token_is_revoked {
-        return Outcome::Error((Status::Unauthorized, ()));
-      }
-
       let user_data: Option<User> = User::new(&mut db, uuid).await;
 
       match user_data {

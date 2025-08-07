@@ -1,6 +1,6 @@
-use rocket_db_pools::sqlx::{ self, Row, SqliteConnection, Error, sqlite::{ Sqlite, SqliteRow } };
+use crate::{ models::users::{ list::List, recipe::IngredientUnit, Recipe, Review }, utils::functions::get_from_row };
+use rocket_db_pools::sqlx::{ self, Row, SqliteConnection, Error, sqlite::SqliteRow };
 use rocket::serde::{ json::from_str, Deserialize, Serialize };
-use crate::models::users::{ Review, Recipe };
 
 pub enum GetFollowType {
   Followers,
@@ -36,9 +36,9 @@ impl MiniUser {
       .bind(&uuid)
       .fetch_one(&mut *db).await
       .and_then(|row: SqliteRow| {
-        let name: String = row.try_get::<String, _>("name").unwrap();
-        let bio: Option<String> = row.try_get::<Option<String>, _>("bio").unwrap();
-        let is_subscribed: u8 = row.try_get::<u8, _>("is_subscribed").unwrap();
+        let name: String = get_from_row(&row, "name");
+        let bio: Option<String> = get_from_row(&row, "bio");
+        let is_subscribed: u8 = get_from_row(&row, "is_subscribed");
         let is_subscribed: bool = is_subscribed == 1;
         Ok((name, bio, is_subscribed))
       })
@@ -70,16 +70,18 @@ impl MiniUser {
         rows
           .into_iter()
           .map(|row: SqliteRow| {
-            let id: u32 = row.try_get::<u32, _>("id").unwrap();
-            let uuid: String = row.try_get::<String, _>("uuid").unwrap();
-            let user_uuid: String = row.try_get::<String, _>("user_uuid").unwrap();
-            let name: String = row.try_get::<String, _>("name").unwrap();
-            let ingredients: String = row.try_get::<String, _>("ingredients").unwrap();
-            let ingredients: Vec<(String, f32, String)> = from_str(&ingredients).unwrap();
-            let instructions: Option<String> = row.try_get::<Option<String>, _>("instructions").unwrap();
-            let category: Option<String> = row.try_get::<Option<String>, _>("category").unwrap();
-            let image: Option<String> = row.try_get::<Option<String>, _>("image").unwrap();
-            Ok(Recipe::from_data(id, uuid, user_uuid, name, ingredients, instructions, category, image))
+            let id: u32 = get_from_row(&row, "id");
+            let uuid: String = get_from_row(&row, "uuid");
+            let user_uuid: String = get_from_row(&row, "user_uuid");
+            let created_at: u32 = get_from_row(&row, "created_at");
+            let last_updated: u32 = get_from_row(&row, "last_updated");
+            let name: String = get_from_row(&row, "name");
+            let ingredients: String = get_from_row(&row, "ingredients");
+            let ingredients: Vec<(String, f32, IngredientUnit)> = from_str(&ingredients).unwrap();
+            let instructions: Option<String> = get_from_row(&row, "instructions");
+            let category: Option<String> = get_from_row(&row, "category");
+            let image: Option<String> = get_from_row(&row, "image");
+            Ok(Recipe::new(id, uuid, user_uuid, created_at, last_updated, name, ingredients, instructions, category, image))
           })
           .collect()
       })
@@ -97,7 +99,7 @@ pub struct SerializedUser {
   /// User's name.
   pub name: String,
   /// User's biography for their profile.
-  pub bio: String,
+  pub bio: Option<String>,
   /// User's email address.
   pub email: String,
   /// The last time the user has logged in, as a unix timestamp.
@@ -110,6 +112,10 @@ pub struct SerializedUser {
   pub is_subscribed: bool,
   /// A list of the names of the user's allergies.
   pub allergies: Vec<String>,
+  /// A list of tags that the user has set.
+  ///
+  /// Used for generating lists.
+  pub preferences: Vec<String>,
   /// Number of followers the user has.
   pub followers: u32,
   /// Number of users the user is following.
@@ -126,7 +132,7 @@ pub struct User {
   /// User's name.
   pub name: String,
   /// User's biography for their profile.
-  pub bio: String,
+  pub bio: Option<String>,
   /// User's email address.
   pub email: String,
   /// User's encrypted password.
@@ -141,12 +147,12 @@ pub struct User {
   pub is_subscribed: bool,
   /// A list of the names of the user's allergies.
   pub allergies: Vec<String>,
+  /// A list of tags that the user has set.
+  ///
+  /// Used for generating lists.
+  pub preferences: Vec<String>,
 }
 impl User {
-  fn get_from_row<'a, T: sqlx::Decode<'a, Sqlite> + sqlx::Type<Sqlite>>(row: &'a SqliteRow, column: &str) -> T {
-    row.try_get::<T, _>(column).unwrap()
-  }
-
   /// Creates a new user.
   pub async fn new(db: &mut SqliteConnection, uuid: String) -> Option<Self> {
     sqlx
@@ -154,17 +160,19 @@ impl User {
       .bind(&uuid)
       .fetch_one(db).await
       .and_then(|row: SqliteRow| {
-        let id: u32 = Self::get_from_row(&row, "id");
-        let name: String = Self::get_from_row(&row, "name");
-        let bio: String = Self::get_from_row(&row, "bio");
-        let email: String = Self::get_from_row(&row, "email");
-        let password: String = Self::get_from_row(&row, "password");
-        let last_login: u32 = Self::get_from_row(&row, "last_login");
-        let date_joined: u32 = Self::get_from_row(&row, "date_joined");
-        let store_uuid: Option<String> = Self::get_from_row(&row, "store_uuid");
-        let is_subscribed: u8 = Self::get_from_row(&row, "is_subscribed");
-        let allergies: Option<String> = Self::get_from_row(&row, "allergies");
+        let id: u32 = get_from_row(&row, "id");
+        let name: String = get_from_row(&row, "name");
+        let bio: Option<String> = get_from_row(&row, "bio");
+        let email: String = get_from_row(&row, "email");
+        let password: String = get_from_row(&row, "password");
+        let last_login: u32 = get_from_row(&row, "last_login");
+        let date_joined: u32 = get_from_row(&row, "date_joined");
+        let store_uuid: Option<String> = get_from_row(&row, "store_uuid");
+        let is_subscribed: u8 = get_from_row(&row, "is_subscribed");
+        let allergies: Option<String> = get_from_row(&row, "allergies");
         let allergies: Vec<String> = from_str(&allergies.unwrap_or("[]".to_string())).unwrap();
+        let preferences: Option<String> = get_from_row(&row, "preferences");
+        let preferences: Vec<String> = from_str(&preferences.unwrap_or("[]".to_string())).unwrap();
         Ok(Self {
           id,
           uuid,
@@ -177,6 +185,7 @@ impl User {
           store_uuid,
           is_subscribed: is_subscribed == 1,
           allergies,
+          preferences,
         })
       })
       .ok()
@@ -196,6 +205,7 @@ impl User {
       store_uuid: self.store_uuid.clone(),
       is_subscribed: self.is_subscribed,
       allergies: self.allergies.clone(),
+      preferences: self.preferences.clone(),
       followers: followers.0,
       following: following.0,
     }
@@ -203,7 +213,7 @@ impl User {
 
   /// Gets the user's reviews left on other stores.
   ///
-  /// Returns `(total_reviews, reviews)``
+  /// Returns `(total_reviews, reviews)`
   pub async fn get_reviews(&self, db: &mut SqliteConnection, limit: u32, offset: u32) -> (usize, Vec<Review>) {
     let total_reviews: (u32,) = sqlx::query_as("SELECT COUNT(*) FROM store_reviews WHERE user_uuid = $1").bind(&self.uuid).fetch_one(&mut *db).await.unwrap();
 
@@ -218,13 +228,14 @@ impl User {
           rows
             .into_iter()
             .map(|row: SqliteRow| {
-              let id: u32 = Self::get_from_row(&row, "id");
-              let user_uuid: String = Self::get_from_row(&row, "user_uuid");
-              let store_uuid: String = Self::get_from_row(&row, "store_uuid");
-              let rating: f32 = Self::get_from_row(&row, "rating");
-              let description: String = Self::get_from_row(&row, "description");
+              let id: u32 = get_from_row(&row, "id");
+              let user_uuid: String = get_from_row(&row, "user_uuid");
+              let store_uuid: String = get_from_row(&row, "store_uuid");
+              let created_at: u32 = get_from_row(&row, "created_at");
+              let rating: f32 = get_from_row(&row, "rating");
+              let description: Option<String> = get_from_row(&row, "description");
 
-              Ok(Review::new(id, user_uuid, store_uuid, rating, description))
+              Ok(Review::new(id, user_uuid, store_uuid, created_at, rating, description))
             })
             .collect()
         ).unwrap()
@@ -236,7 +247,7 @@ impl User {
 
   /// Gets a small array of the user's followers or following and some information about them.
   ///
-  /// Returns `(total_followers/following, followers/following)``
+  /// Returns `(total_followers/following, followers/following)`
   pub async fn get_fame(&self, db: &mut SqliteConnection, follow_type: GetFollowType, limit: u32, offset: u32) -> (usize, Vec<MiniUser>) {
     let type_to_get_from: &'static str = match follow_type {
       GetFollowType::Followers => "followed_uuid",
@@ -259,7 +270,7 @@ impl User {
         Ok::<Result<Vec<String>, Error>, Error>(
           rows
             .into_iter()
-            .map(|row: SqliteRow| { Ok(Self::get_from_row(&row, type_to_get)) })
+            .map(|row: SqliteRow| { Ok(get_from_row(&row, type_to_get)) })
             .collect()
         ).unwrap()
       })
@@ -275,7 +286,7 @@ impl User {
 
   /// Gets the user's authored/liked recipes.
   ///
-  /// Returns `(total_recipes, recipes)``
+  /// Returns `(total_recipes, recipes)`
   pub async fn get_recipes(&self, db: &mut SqliteConnection, recipe_type: GetRecipesType, limit: u32, offset: u32) -> (usize, Vec<Recipe>) {
     let table_to_get_from: &'static str = match recipe_type {
       GetRecipesType::Authored => "recipes",
@@ -305,17 +316,19 @@ impl User {
           rows
             .into_iter()
             .map(|row: SqliteRow| {
-              let id: u32 = Self::get_from_row(&row, "id");
-              let uuid: String = Self::get_from_row(&row, "uuid");
-              let user_uuid: String = Self::get_from_row(&row, "user_uuid");
-              let name: String = Self::get_from_row(&row, "name");
-              let ingredients: String = Self::get_from_row(&row, "ingredients");
-              let ingredients: Vec<(String, f32, String)> = from_str(&ingredients).unwrap();
-              let instructions: Option<String> = Self::get_from_row(&row, "instructions");
-              let category: Option<String> = Self::get_from_row(&row, "category");
-              let image: Option<String> = Self::get_from_row(&row, "image");
+              let id: u32 = get_from_row(&row, "id");
+              let uuid: String = get_from_row(&row, "uuid");
+              let user_uuid: String = get_from_row(&row, "user_uuid");
+              let created_at: u32 = get_from_row(&row, "created_at");
+              let last_updated: u32 = row.try_get::<u32, _>("last_updated").unwrap();
+              let name: String = get_from_row(&row, "name");
+              let ingredients: String = get_from_row(&row, "ingredients");
+              let ingredients: Vec<(String, f32, IngredientUnit)> = from_str(&ingredients).unwrap();
+              let instructions: Option<String> = get_from_row(&row, "instructions");
+              let category: Option<String> = get_from_row(&row, "category");
+              let image: Option<String> = get_from_row(&row, "image");
 
-              Ok(Recipe::from_data(id, uuid, user_uuid, name, ingredients, instructions, category, image))
+              Ok(Recipe::new(id, uuid, user_uuid, created_at, last_updated, name, ingredients, instructions, category, image))
             })
             .collect()
         ).unwrap()
@@ -335,7 +348,7 @@ impl User {
         Ok::<Result<Vec<String>, Error>, Error>(
           rows
             .into_iter()
-            .map(|row: SqliteRow| { Ok(Self::get_from_row(&row, "recipe_uuid")) })
+            .map(|row: SqliteRow| { Ok(get_from_row(&row, "recipe_uuid")) })
             .collect()
         ).unwrap()
       })
@@ -350,21 +363,58 @@ impl User {
           rows
             .into_iter()
             .map(|row: SqliteRow| {
-              let id: u32 = Self::get_from_row(&row, "id");
-              let uuid: String = Self::get_from_row(&row, "uuid");
-              let user_uuid: String = Self::get_from_row(&row, "user_uuid");
-              let name: String = Self::get_from_row(&row, "name");
-              let ingredients: String = Self::get_from_row(&row, "ingredients");
-              let ingredients: Vec<(String, f32, String)> = from_str(&ingredients).unwrap();
-              let instructions: Option<String> = Self::get_from_row(&row, "instructions");
-              let category: Option<String> = Self::get_from_row(&row, "category");
-              let image: Option<String> = Self::get_from_row(&row, "image");
+              let id: u32 = get_from_row(&row, "id");
+              let uuid: String = get_from_row(&row, "uuid");
+              let user_uuid: String = get_from_row(&row, "user_uuid");
+              let created_at: u32 = get_from_row(&row, "created_at");
+              let last_updated: u32 = row.try_get::<u32, _>("last_updated").unwrap();
+              let name: String = get_from_row(&row, "name");
+              let ingredients: String = get_from_row(&row, "ingredients");
+              let ingredients: Vec<(String, f32, IngredientUnit)> = from_str(&ingredients).unwrap();
+              let instructions: Option<String> = get_from_row(&row, "instructions");
+              let category: Option<String> = get_from_row(&row, "category");
+              let image: Option<String> = get_from_row(&row, "image");
 
-              Ok(Recipe::from_data(id, uuid, user_uuid, name, ingredients, instructions, category, image))
+              Ok(Recipe::new(id, uuid, user_uuid, created_at, last_updated, name, ingredients, instructions, category, image))
             })
             .collect()
         ).unwrap()
       })
       .unwrap()
+  }
+
+  /// Gets the user's authored/liked recipes.
+  ///
+  /// Returns `(total_lists, lists)`
+  pub async fn get_lists(&self, db: &mut SqliteConnection, limit: u32, offset: u32) -> (usize, Vec<List>) {
+    let total_lists: (u32,) = sqlx::query_as("SELECT COUNT(*) FROM lists WHERE user_uuid = $1").bind(&self.uuid).fetch_one(&mut *db).await.unwrap();
+
+    let lists: Vec<List> = sqlx
+      ::query("SELECT * FROM lists WHERE user_uuid = $1 LIMIT $2 OFFSET $3")
+      .bind(&self.uuid)
+      .bind(limit)
+      .bind(offset)
+      .fetch_all(&mut *db).await
+      .and_then(|rows: Vec<SqliteRow>| {
+        Ok::<Result<Vec<List>, Error>, Error>(
+          rows
+            .into_iter()
+            .map(|row: SqliteRow| {
+              let id: u32 = get_from_row(&row, "id");
+              let uuid: String = get_from_row(&row, "uuid");
+              let user_uuid: String = get_from_row(&row, "user_uuid");
+              let created_at: u32 = get_from_row(&row, "created_at");
+              let last_updated: u32 = row.try_get::<u32, _>("last_updated").unwrap();
+              let items: String = get_from_row(&row, "items");
+              let items: Vec<String> = from_str(&items).unwrap();
+
+              Ok(List::new(id, uuid, user_uuid, created_at, last_updated, items))
+            })
+            .collect()
+        ).unwrap()
+      })
+      .unwrap();
+
+    (total_lists.0 as usize, lists)
   }
 }

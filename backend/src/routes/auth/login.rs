@@ -1,5 +1,5 @@
 use rocket::{ http::Status, serde::{ Serialize, Deserialize, json::Json } };
-use crate::{ models::{ stores::Store, users::{SerializedUser, User} }, routes::auth::init::InitOutput, utils::{ db::Db, functions::get_unix_seconds, jwt::generate_jwt } };
+use crate::{ models::{ stores::Store, users::{ SerializedUser, User } }, routes::auth::init::InitOutput, utils::{ db::Db, functions::get_unix_seconds, jwt::generate_jwt } };
 use rocket_db_pools::sqlx::{ self, Row };
 use rocket_db_pools::Connection;
 use bcrypt::verify;
@@ -33,7 +33,7 @@ pub struct LoginReturnData {
 /// ```
 ///
 /// **Output**: Same as /auth/init
-#[post("/login", format = "json", data = "<data>")]
+#[post("/login", data = "<data>")]
 pub async fn login(mut db: Connection<Db>, data: Json<LoginData<'_>>) -> Result<Json<(String, InitOutput)>, Status> {
   let user_data: Option<(String, String, Option<String>)> = sqlx
     ::query("SELECT uuid, password, store_uuid FROM users WHERE email = $1")

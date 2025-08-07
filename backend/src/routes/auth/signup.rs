@@ -1,4 +1,4 @@
-use crate::utils::{ db::Db, functions::get_unix_seconds, jwt::generate_jwt };
+use crate::{ models::users::{ SerializedUser, User }, utils::{ db::Db, functions::get_unix_seconds, jwt::generate_jwt } };
 use rocket::{ http::Status, serde::{ Serialize, Deserialize, json::Json } };
 use bcrypt::{ DEFAULT_COST, hash };
 use rocket_db_pools::Connection;
@@ -37,16 +37,12 @@ pub struct SignupReturn {
 /// ```
 ///
 /// **Output**:
-/// ```ts
-/// {
-///   token: string;
-/// }
-/// ```
+/// - same as /auth/init (success)
 /// - 400 (password too weak)
 /// - 401 (email already used)
 /// - 500 (error)
-#[post("/signup", format = "json", data = "<data>")]
-pub async fn signup(mut db: Connection<Db>, data: Json<SignupData>) -> Result<Json<SignupReturn>, Status> {
+#[post("/signup", data = "<data>")]
+pub async fn signup(mut db: Connection<Db>, data: Json<SignupData>) -> Result<Json<(String, SerializedUser)>, Status> {
   let password_strength: zxcvbn::Entropy = zxcvbn(&data.0.password, &[&data.0.email]);
   if password_strength.score() < zxcvbn::Score::Three {
     return Err(Status::BadRequest);
@@ -59,10 +55,11 @@ pub async fn signup(mut db: Connection<Db>, data: Json<SignupData>) -> Result<Js
 
   let hashed_password: String = hash(&data.0.password, DEFAULT_COST).unwrap();
 
+  // TODO: change output to init
   let uuid: String = Uuid::new_v4().to_string();
   sqlx
     ::query("INSERT INTO users (uuid, password, name, bio, last_login, email, date_joined) VALUES ($1, $2, $3, $4, $5)")
-    .bind(Uuid::new_v4().to_string())
+    .bind(&uuid)
     .bind(hashed_password)
     .bind(data.0.name)
     .bind(data.0.bio)
@@ -72,9 +69,8 @@ pub async fn signup(mut db: Connection<Db>, data: Json<SignupData>) -> Result<Js
     .execute(&mut **db).await
     .unwrap();
 
-  Ok(
-    Json(SignupReturn {
-      token: generate_jwt(&uuid).unwrap(),
-    })
-  )
+  let token: String = generate_jwt(&uuid).unwrap();
+  let user: User = User::new(&mut **db, uuid).await.unwrap();
+
+  Ok(Json((token, user.serialize(&mut **db).await)))
 }

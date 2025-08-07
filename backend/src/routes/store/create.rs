@@ -1,7 +1,6 @@
 use rocket::{ http::Status, serde::{ json::Json, Deserialize } };
-use rocket_db_pools::{ sqlx::Sqlite, Connection };
+use rocket_db_pools::{ sqlx::{ self, Sqlite }, Connection };
 use crate::guards::auth::AuthenticatedUser;
-use rocket_db_pools::sqlx;
 use crate::utils::db::Db;
 
 #[derive(Deserialize)]
@@ -30,8 +29,10 @@ pub struct CreateData {
   /// The first value of each tuple is the open time, the second is the closing time.
   ///
   /// Time should be in 24-hour format, with colons and leading 0s.
-  /// 
-  /// If the store is closed all day, use `("00:00", "23:59")`
+  ///
+  /// If the store is open all day, use `("00:00", "23:59")`.
+  ///
+  /// If the store is closed all day, use `("00:00", "00:00")`.
   open_hours: Option<[(String, String); 7]>,
 }
 
@@ -53,17 +54,17 @@ pub struct CreateData {
 /// ```
 ///
 /// **Output**:
-/// - 200 (success)
+/// - `string` - The store's UUID
 /// - 400 (invalid phone number, email, or open hours)
 /// - 500 (invalid geolocation)
-#[post("/create", format = "json", data = "<data>")]
-pub async fn create(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<CreateData>) -> Status {
+#[post("/create", data = "<data>")]
+pub async fn create(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<CreateData>) -> Result<String, Status> {
   if data.0.phone.is_some() && data.0.phone.clone().unwrap().len() != 10 {
-    return Status::BadRequest;
+    return Err(Status::BadRequest);
   }
 
   if data.0.email.is_some() && !data.0.email.clone().unwrap().contains('@') {
-    return Status::BadRequest;
+    return Err(Status::BadRequest);
   }
 
   let open_hours_entered: bool = data.0.open_hours.is_some();
@@ -71,7 +72,7 @@ pub async fn create(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<
     for (_, (open, close)) in data.0.open_hours.clone().unwrap().iter().enumerate() {
       if open.len() != 5 || close.len() != 5 {
         // not 24-hour format
-        return Status::BadRequest;
+        return Err(Status::BadRequest);
       }
     }
   }
@@ -82,7 +83,7 @@ pub async fn create(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<
   let (latitude, longitude) = match data.0.geolocation.split(", ").collect::<Vec<&str>>().as_slice() {
     [lat, long] => (*lat, *long),
     _ => {
-      return Status::InternalServerError;
+      return Err(Status::InternalServerError);
     }
   };
 
@@ -111,6 +112,7 @@ pub async fn create(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<
 
   insert_query.execute(&mut **db).await.unwrap();
 
-  sqlx::query("UPDATE users SET store_uuid = $1 WHERE uuid = $2").bind(uuid).bind(&user.0.uuid).execute(&mut **db).await.unwrap();
-  Status::Ok
+  sqlx::query("UPDATE users SET store_uuid = $1 WHERE uuid = $2").bind(&uuid).bind(&user.0.uuid).execute(&mut **db).await.unwrap();
+
+  Ok(uuid)
 }

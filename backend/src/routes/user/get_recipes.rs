@@ -1,4 +1,4 @@
-use crate::{ guards::auth::AuthenticatedUser, models::users::{ user::{GetRecipesType, MiniUser}, SerializedRecipe } };
+use crate::{ guards::auth::AuthenticatedUser, models::users::{ user::{ GetRecipesType, MiniUser }, SerializedRecipe } };
 use rocket::{ http::Status, serde::{ json::Json, Deserialize } };
 use rocket_db_pools::Connection;
 use crate::utils::db::Db;
@@ -7,9 +7,9 @@ use crate::utils::db::Db;
 #[serde(crate = "rocket::serde")]
 pub struct RecipeInput {
   /// UUID of the user to fetch recipes for.
-  /// 
+  ///
   /// Defaults to the current user.
-  /// 
+  ///
   /// If a UUID is provided, the type of recipes to fetch is ignored and will be set to `0` - authored.
   pub uuid: Option<String>,
   /// Type of data to fetch.
@@ -51,6 +51,8 @@ pub struct RecipeInput {
 ///   {
 ///     uuid: number;
 ///     user_uuid: number;
+///     created_at: number;
+///     last_updated: number;
 ///     name: string;
 ///     ingredients: [name: string, amount: number, unit: string][];
 ///     category: string | null;
@@ -58,7 +60,7 @@ pub struct RecipeInput {
 ///   }[];
 /// ]
 /// ```
-#[post("/get-recipes", format = "json", data = "<data>")]
+#[post("/get-recipes", data = "<data>")]
 pub async fn get_recipes(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<RecipeInput>) -> Result<Json<(usize, Vec<SerializedRecipe>)>, Status> {
   let limit: u32 = data.0.limit.unwrap_or(20);
   let offset: u32 = data.0.offset.unwrap_or(0);
@@ -67,12 +69,12 @@ pub async fn get_recipes(mut db: Connection<Db>, user: AuthenticatedUser, data: 
     GetRecipesType::Authored
   } else {
     match data.0.r#type {
-    0 => GetRecipesType::Authored,
-    1 => GetRecipesType::Liked,
-    _ => {
-      return Err(Status::BadRequest);
+      0 => GetRecipesType::Authored,
+      1 => GetRecipesType::Liked,
+      _ => {
+        return Err(Status::BadRequest);
+      }
     }
-  }
   };
 
   let (total_recipes, recipes) = if data.0.uuid.is_some() {

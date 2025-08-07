@@ -1,3 +1,5 @@
+use crate::{ models::stores::{ Deal, SerializedDeal }, utils::functions::get_from_row };
+use rocket_db_pools::sqlx::{ self, SqliteConnection };
 use rocket::serde::Serialize;
 
 #[derive(Serialize)]
@@ -15,10 +17,10 @@ pub struct SerializedItem {
   pub in_stock: bool,
   /// UUID of the item's store.
   pub store_uuid: String,
-  /// UUID of a deal associated with this item.
+  /// Data about the item's deal.
   ///
   /// Each item can only be a part of one deal.
-  pub deal_uuid: Option<String>,
+  pub deal: Option<SerializedDeal>,
   /// JSON blob of the item's image.
   pub image: Option<String>,
 }
@@ -63,7 +65,7 @@ impl Item {
     }
   }
 
-  pub fn serialize(&self) -> SerializedItem {
+  pub async fn serialize(&self, db: &mut SqliteConnection) -> SerializedItem {
     SerializedItem {
       uuid: self.uuid.clone(),
       name: self.name.clone(),
@@ -71,8 +73,35 @@ impl Item {
       manufacturer: self.manufacturer.clone(),
       in_stock: self.in_stock,
       store_uuid: self.store_uuid.clone(),
-      deal_uuid: self.deal_uuid.clone(),
+      deal: if self.deal_uuid.is_some() {
+        Some(Deal::from_uuid(&mut *db, self.deal_uuid.as_ref().unwrap().to_string()).await.unwrap().serialize())
+      } else {
+        None
+      },
       image: self.image.clone(),
     }
+  }
+
+  pub async fn from_uuid(db: &mut SqliteConnection, uuid: String) -> Option<Self> {
+    sqlx
+      ::query("SELECT * FROM items WHERE uuid = $1")
+      .bind(&uuid)
+      .fetch_one(&mut *db).await
+      .and_then(|row: sqlx::sqlite::SqliteRow| {
+        Ok(
+          Self::new(
+            get_from_row(&row, "id"),
+            get_from_row(&row, "uuid"),
+            get_from_row(&row, "name"),
+            get_from_row(&row, "price"),
+            get_from_row(&row, "manufacturer"),
+            get_from_row(&row, "in_stock"),
+            get_from_row(&row, "store_uuid"),
+            get_from_row(&row, "deal_uuid"),
+            get_from_row(&row, "image")
+          )
+        )
+      })
+      .ok()
   }
 }

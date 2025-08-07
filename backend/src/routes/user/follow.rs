@@ -6,7 +6,7 @@ use crate::utils::db::Db;
 /// # Follow a User
 /// **Route**: /user/follow/<uuid>
 ///
-/// **Request method**: GET
+/// **Request method**: PUT
 ///
 /// **Input**: None
 ///
@@ -14,7 +14,7 @@ use crate::utils::db::Db;
 /// - 200 (success)
 /// - 400 (already following)
 /// - 418 (trying to follow self)
-#[get("/follow/<uuid>")]
+#[put("/follow/<uuid>")]
 pub async fn follow(mut db: Connection<Db>, user: AuthenticatedUser, uuid: &str) -> Status {
   if uuid == user.0.uuid {
     return Status::ImATeapot;
@@ -25,11 +25,6 @@ pub async fn follow(mut db: Connection<Db>, user: AuthenticatedUser, uuid: &str)
     return Status::BadRequest;
   }
 
-  sqlx
-    ::query("INSERT INTO followers (follower_uuid, followed_uuid) VALUES ($1, $2)")
-    .bind(user.0.uuid)
-    .bind(uuid)
-    .execute(&mut **db).await
-    .unwrap();
+  sqlx::query("INSERT INTO followers (follower_uuid, followed_uuid) VALUES ($1, $2)").bind(user.0.uuid).bind(uuid).execute(&mut **db).await.unwrap();
   Status::Ok
 }

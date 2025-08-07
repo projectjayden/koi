@@ -1,6 +1,7 @@
 pub mod recipe;
 pub mod review;
 pub mod user;
+pub mod list;
 
 pub use recipe::SerializedRecipe as SerializedRecipe;
 pub use review::SerializedReview as SerializedReview;

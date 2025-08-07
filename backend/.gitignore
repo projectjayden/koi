@@ -1,6 +1,13 @@
+# build
 target
 Cargo.lock
+
+# env
 .env
+
+# docs
+docs.md
+
+# database
 db.sqlite
 *.sqlite-journal
-docs.md

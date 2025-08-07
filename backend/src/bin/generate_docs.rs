@@ -16,6 +16,8 @@ fn collect_rust_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
   Ok(rust_files)
 }
 
+const METHODS: [&str; 5] = ["#[get(", "#[post(", "#[patch(", "#[put(", "#[delete("];
+
 /// Generate markdown documentation for all routes
 ///
 /// For documentation for each input field, see the actual file
@@ -32,7 +34,7 @@ pub fn main() -> io::Result<()> {
 
     let mut i: usize = 0;
     while i < lines.len() {
-      if lines[i].contains("#[get(") || lines[i].contains("#[post(") {
+      if METHODS.iter().any(|method: &&str| lines[i].contains(method)) {
         let mut start_index: usize = i;
         while start_index > 0 && !lines[start_index - 1].contains("/// # ") {
           start_index -= 1;

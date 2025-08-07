@@ -1,5 +1,5 @@
-use rocket_db_pools::sqlx::{ self, Row, SqliteConnection, Sqlite, Error };
-use crate::models::{ stores::{ Deal, Item }, users::Review };
+use crate::{ models::{ stores::{ Deal, Item }, users::Review }, utils::functions::get_from_row };
+use rocket_db_pools::sqlx::{ self, SqliteConnection, Error };
 use rocket::{ serde::{ Deserialize, Serialize } };
 
 #[derive(Deserialize, Serialize)]
@@ -9,6 +9,8 @@ pub struct SerializedStore {
   pub uuid: String,
   /// Store's name.
   pub name: String,
+  /// Store's description.
+  pub description: Option<String>,
   /// Latitude of the store location.
   pub latitude: f32,
   /// Longitude of the store location.
@@ -36,6 +38,8 @@ pub struct Store {
   pub uuid: String,
   /// Store's name.
   pub name: String,
+  /// Store's description.
+  pub description: Option<String>,
   /// Latitude of the store location.
   pub latitude: f32,
   /// Longitude of the store location.
@@ -54,10 +58,6 @@ pub struct Store {
   pub open_hours: Option<[(String, String); 7]>,
 }
 impl Store {
-  fn get_from_row<'a, T: sqlx::Decode<'a, Sqlite> + sqlx::Type<Sqlite>>(row: &'a sqlx::sqlite::SqliteRow, column: &str) -> T {
-    row.try_get::<T, _>(column).unwrap()
-  }
-
   /// Creates a new store.
   pub async fn new(db: &mut SqliteConnection, uuid: String) -> Option<Self> {
     sqlx
@@ -65,26 +65,27 @@ impl Store {
       .bind(&uuid)
       .fetch_one(db).await
       .and_then(|row: sqlx::sqlite::SqliteRow| {
-        let id: u32 = Self::get_from_row::<u32>(&row, "id");
-        let name: String = Self::get_from_row(&row, "name");
-        let latitude: f32 = Self::get_from_row(&row, "latitude");
-        let longitude: f32 = Self::get_from_row(&row, "longitude");
-        let phone: Option<String> = Self::get_from_row(&row, "phone");
-        let email: Option<String> = Self::get_from_row(&row, "email");
-        let open_mon: Option<String> = Self::get_from_row(&row, "open_mon");
-        let close_mon: Option<String> = Self::get_from_row(&row, "close_mon");
-        let open_tue: Option<String> = Self::get_from_row(&row, "open_tue");
-        let close_tue: Option<String> = Self::get_from_row(&row, "close_tue");
-        let open_wed: Option<String> = Self::get_from_row(&row, "open_wed");
-        let close_wed: Option<String> = Self::get_from_row(&row, "close_wed");
-        let open_thu: Option<String> = Self::get_from_row(&row, "open_thu");
-        let close_thu: Option<String> = Self::get_from_row(&row, "close_thu");
-        let open_fri: Option<String> = Self::get_from_row(&row, "open_fri");
-        let close_fri: Option<String> = Self::get_from_row(&row, "close_fri");
-        let open_sat: Option<String> = Self::get_from_row(&row, "open_sat");
-        let close_sat: Option<String> = Self::get_from_row(&row, "close_sat");
-        let open_sun: Option<String> = Self::get_from_row(&row, "open_sun");
-        let close_sun: Option<String> = Self::get_from_row(&row, "close_sun");
+        let id: u32 = get_from_row::<u32>(&row, "id");
+        let name: String = get_from_row(&row, "name");
+        let description: Option<String> = get_from_row(&row, "description");
+        let latitude: f32 = get_from_row(&row, "latitude");
+        let longitude: f32 = get_from_row(&row, "longitude");
+        let phone: Option<String> = get_from_row(&row, "phone");
+        let email: Option<String> = get_from_row(&row, "email");
+        let open_mon: Option<String> = get_from_row(&row, "open_mon");
+        let close_mon: Option<String> = get_from_row(&row, "close_mon");
+        let open_tue: Option<String> = get_from_row(&row, "open_tue");
+        let close_tue: Option<String> = get_from_row(&row, "close_tue");
+        let open_wed: Option<String> = get_from_row(&row, "open_wed");
+        let close_wed: Option<String> = get_from_row(&row, "close_wed");
+        let open_thu: Option<String> = get_from_row(&row, "open_thu");
+        let close_thu: Option<String> = get_from_row(&row, "close_thu");
+        let open_fri: Option<String> = get_from_row(&row, "open_fri");
+        let close_fri: Option<String> = get_from_row(&row, "close_fri");
+        let open_sat: Option<String> = get_from_row(&row, "open_sat");
+        let close_sat: Option<String> = get_from_row(&row, "close_sat");
+        let open_sun: Option<String> = get_from_row(&row, "open_sun");
+        let close_sun: Option<String> = get_from_row(&row, "close_sun");
 
         let open_hours: Option<[(String, String); 7]> = if open_mon.is_some() {
           Some([
@@ -103,6 +104,7 @@ impl Store {
           id,
           uuid,
           name,
+          description,
           latitude,
           longitude,
           phone,
@@ -117,6 +119,7 @@ impl Store {
     SerializedStore {
       uuid: self.uuid.clone(),
       name: self.name.clone(),
+      description: self.description.clone(),
       latitude: self.latitude,
       longitude: self.longitude,
       phone: self.phone.clone(),
@@ -132,7 +135,7 @@ impl Store {
       .bind(latitude)
       .bind(longitude)
       .fetch_one(&mut *db).await
-      .and_then(|row: sqlx::sqlite::SqliteRow| Ok(Self::get_from_row(&row, "uuid")))
+      .and_then(|row: sqlx::sqlite::SqliteRow| Ok(get_from_row(&row, "uuid")))
       .ok();
 
     let uuid: String = match uuid {
@@ -154,15 +157,15 @@ impl Store {
       .unwrap()
       .into_iter()
       .map(|row: sqlx::sqlite::SqliteRow| {
-        let id: u32 = Self::get_from_row(&row, "id");
-        let uuid: String = Self::get_from_row(&row, "uuid");
-        let name: String = Self::get_from_row(&row, "name");
-        let price: f32 = Self::get_from_row(&row, "price");
-        let manufacturer: Option<String> = Self::get_from_row(&row, "manufacturer");
-        let in_stock: bool = Self::get_from_row(&row, "in_stock");
-        let store_uuid: String = Self::get_from_row(&row, "store_uuid");
-        let deal_uuid: Option<String> = Self::get_from_row(&row, "deal_uuid");
-        let image: Option<String> = Self::get_from_row(&row, "image");
+        let id: u32 = get_from_row(&row, "id");
+        let uuid: String = get_from_row(&row, "uuid");
+        let name: String = get_from_row(&row, "name");
+        let price: f32 = get_from_row(&row, "price");
+        let manufacturer: Option<String> = get_from_row(&row, "manufacturer");
+        let in_stock: bool = get_from_row(&row, "in_stock");
+        let store_uuid: String = get_from_row(&row, "store_uuid");
+        let deal_uuid: Option<String> = get_from_row(&row, "deal_uuid");
+        let image: Option<String> = get_from_row(&row, "image");
         Item::new(id, uuid, name, price, manufacturer, in_stock, store_uuid, deal_uuid, image)
       })
       .collect()
@@ -177,15 +180,15 @@ impl Store {
       .unwrap()
       .into_iter()
       .map(|row: sqlx::sqlite::SqliteRow| {
-        let id: u32 = Self::get_from_row(&row, "id");
-        let uuid: String = Self::get_from_row(&row, "uuid");
-        let name: String = Self::get_from_row(&row, "name");
-        let description: Option<String> = Self::get_from_row(&row, "description");
-        let start_date: u32 = Self::get_from_row(&row, "start_date");
-        let end_date: u32 = Self::get_from_row(&row, "end_date");
-        let r#type: u8 = Self::get_from_row(&row, "type");
-        let value_1: u8 = Self::get_from_row(&row, "value_1");
-        let value_2: Option<u8> = Self::get_from_row(&row, "value_2");
+        let id: u32 = get_from_row(&row, "id");
+        let uuid: String = get_from_row(&row, "uuid");
+        let name: String = get_from_row(&row, "name");
+        let description: Option<String> = get_from_row(&row, "description");
+        let start_date: u32 = get_from_row(&row, "start_date");
+        let end_date: u32 = get_from_row(&row, "end_date");
+        let r#type: u8 = get_from_row(&row, "type");
+        let value_1: u8 = get_from_row(&row, "value_1");
+        let value_2: Option<u8> = get_from_row(&row, "value_2");
         Deal::new(id, uuid, self.uuid.clone(), name, description, start_date, end_date, r#type, value_1, value_2)
       })
       .collect()
@@ -210,12 +213,13 @@ impl Store {
         for i in offset..reviews_to_get {
           let row: &sqlx::sqlite::SqliteRow = rows.get(i as usize).unwrap();
 
-          let id: u32 = Self::get_from_row(row, "id");
-          let user_uuid: String = Self::get_from_row(row, "user_uuid");
-          let store_uuid: String = Self::get_from_row(row, "store_uuid");
-          let rating: f32 = Self::get_from_row(row, "rating");
-          let description: String = Self::get_from_row(row, "description");
-          reviews.push(Review::new(id, user_uuid, store_uuid, rating, description));
+          let id: u32 = get_from_row(row, "id");
+          let user_uuid: String = get_from_row(row, "user_uuid");
+          let store_uuid: String = get_from_row(row, "store_uuid");
+          let created_at: u32 = get_from_row(&row, "created_at");
+          let rating: f32 = get_from_row(row, "rating");
+          let description: Option<String> = get_from_row(row, "description");
+          reviews.push(Review::new(id, user_uuid, store_uuid, created_at, rating, description));
         }
         Ok((num_of_reviews, reviews))
       })
