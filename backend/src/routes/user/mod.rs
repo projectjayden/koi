@@ -1,6 +1,7 @@
 pub mod recipe;
 pub mod list;
 
+pub mod get_all_recipes;
 pub mod update_profile;
 pub mod search_items;
 pub mod get_recipes;
@@ -12,6 +13,7 @@ pub mod lookup;
 pub mod follow;
 pub mod rate;
 
+pub use get_all_recipes::get_all_recipes as GetAllRecipes;
 pub use update_profile::update_profile as UpdateProfile;
 pub use search_items::search_items as SearchItems;
 pub use get_recipes::get_recipes as GetRecipes;

@@ -36,7 +36,8 @@ fn rocket() -> _ {
         routes::user::UpdateProfile,
         routes::user::Follow,
         routes::user::Unfollow,
-        routes::user::SearchItems
+        routes::user::SearchItems,
+        routes::user::GetAllRecipes
       ]
     )
     .mount("/user/recipe", routes![routes::user::recipe::LikeRecipe, routes::user::recipe::UnlikeRecipe, routes::user::recipe::Create, routes::user::recipe::Delete, routes::user::recipe::Edit])

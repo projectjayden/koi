@@ -55,7 +55,6 @@ pub async fn signup(mut db: Connection<Db>, data: Json<SignupData>) -> Result<Js
 
   let hashed_password: String = hash(&data.0.password, DEFAULT_COST).unwrap();
 
-  // TODO: change output to init
   let uuid: String = Uuid::new_v4().to_string();
   sqlx
     ::query("INSERT INTO users (uuid, password, name, bio, last_login, email, date_joined) VALUES ($1, $2, $3, $4, $5)")

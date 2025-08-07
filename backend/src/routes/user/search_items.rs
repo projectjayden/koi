@@ -16,6 +16,7 @@ pub enum PriceFilter {
   All,
 }
 
+// TODO: fix filter
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub enum DistanceFilter {
