@@ -12,6 +12,7 @@ pub mod unfollow;
 pub mod lookup;
 pub mod follow;
 pub mod rate;
+pub mod chat;
 
 pub use get_all_recipes::get_all_recipes as GetAllRecipes;
 pub use update_profile::update_profile as UpdateProfile;

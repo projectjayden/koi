@@ -153,18 +153,38 @@ struct MapView: View {
     
     // clicking the annotation -> opens modal and recenters camera
     private func handleAnnotationTap(for result: MKMapItem) {
-        let storeDetails = createMockStoreDetails(for: result)
-        selectedResult = SelectedStore(mapItem: result, details: storeDetails)
+        // Create loading state
+        let loadingDetails = StoreDetails(
+            storeTitle: result.name ?? "Loading...",
+            storeDescription: "Loading store information...",
+            storeRating: 0.0,
+            storeAddress: result.placemark.title ?? "",
+            storeImages: [],
+            storeDeals: [],
+            itemList: [],
+            storeHours: "Loading...",
+            phoneNumber: "Loading..."
+        )
+        
+        selectedResult = SelectedStore(mapItem: result, details: loadingDetails)
         showingModal = true
         
-        withAnimation(.easeInOut(duration: 0.3)) {
-            selectedResult?.mapItem = result
-            position = .camera(MapCamera(
-                centerCoordinate: result.placemark.coordinate,
-                distance: searchRadius * 0.5,
-                heading: 0,
-                pitch: 0
-            ))
+        // Load real data in background
+        Task {
+            let storeDetails = await loadStoreDetails(for: result)
+            
+            await MainActor.run {
+                selectedResult = SelectedStore(mapItem: result, details: storeDetails)
+                
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    position = .camera(MapCamera(
+                        centerCoordinate: result.placemark.coordinate,
+                        distance: searchRadius * 0.5,
+                        heading: 0,
+                        pitch: 0
+                    ))
+                }
+            }
         }
     }
     
@@ -248,49 +268,47 @@ struct MapView: View {
     
 // TESTING FUNCTION -- SHOULD DELETE AND REPLACE
     
-    private func createMockStoreDetails(for mapItem: MKMapItem) -> StoreDetails {
-         let sampleItems = [
-             storeItem(name: "Organic Bananas", brand: "Fresh Farms", price: 2.99, quantity: 1),
-             storeItem(name: "Whole Milk", brand: "Dairy Best", price: 3.49, quantity: 1),
-             storeItem(name: "Sourdough Bread", brand: "Baker's Choice", price: 4.99, quantity: 1),
-             storeItem(name: "Free Range Eggs", brand: "Happy Hens", price: 5.99, quantity: 12)
-         ]
-         
-         let sampleDeals = [
-             Deals(
-                 type: .percentageOff(20),
-                 category: "Organic Produce",
-                 itemsAppliedTo: [sampleItems[0]],
-                 description: "20% off all organic fruits"
-             ),
-             Deals(
-                 type: .buyXGetYPercentOff(2, 50),
-                 category: "Dairy",
-                 itemsAppliedTo: [sampleItems[1]],
-                 description: "Buy 2 milk products, get 50% off the second"
-             )
-         ]
-         
-         return StoreDetails(
-             storeTitle: mapItem.name ?? "Local Grocery Store",
-             storeDescription: "Your neighborhood grocery store with fresh produce, quality meats, and everyday essentials.",
-             storeRating: Double.random(in: 3.5...5.0),
-             storeAddress: mapItem.placemark.title ?? "Address not available",
-             storeImages: ["store1", "store2", "store3"], // Mock image names
-             storeDeals: sampleDeals,
-             itemList: sampleItems,
-             storeHours: "Mon-Sun: 7:00 AM - 10:00 PM",
-             phoneNumber: "+1 (555) 123-4567"
-         )
-     }
-    
-    /*
-    private func extractStoreDetails(selectedStore: MKMapItem) {
-        // takes store details from sqlite database and adds them to selectedResult.details
+    private static func createMockStoreDetails(for mapItem: MKMapItem) -> StoreDetails {
+        let sampleItems = [
+            storeItem(name: "Organic Bananas", brand: "Fresh Farms", price: 2.99, quantity: 1),
+            storeItem(name: "Whole Milk", brand: "Dairy Best", price: 3.49, quantity: 1),
+            storeItem(name: "Sourdough Bread", brand: "Baker's Choice", price: 4.99, quantity: 1),
+            storeItem(name: "Free Range Eggs", brand: "Happy Hens", price: 5.99, quantity: 12)
+        ]
+        
+        let sampleDeals = [
+            Deals(
+                type: .percentageOff(20),
+                category: "Organic Produce",
+                itemsAppliedTo: [sampleItems[0]],
+                description: "20% off all organic fruits"
+            ),
+            Deals(
+                type: .buyXGetYPercentOff(2, 50),
+                category: "Dairy",
+                itemsAppliedTo: [sampleItems[1]],
+                description: "Buy 2 milk products, get 50% off the second"
+            )
+        ]
+        
+        return StoreDetails(
+            storeTitle: mapItem.name ?? "Local Grocery Store",  // Use mapItem parameter
+            storeDescription: "Your neighborhood grocery store with fresh produce, quality meats, and everyday essentials.",
+            storeRating: Double.random(in: 3.5...5.0),
+            storeAddress: mapItem.placemark.title ?? "Address not available",  // Use mapItem parameter
+            storeImages: ["store1", "store2", "store3"],
+            storeDeals: sampleDeals,
+            itemList: sampleItems,
+            storeHours: "Mon-Sun: 7:00 AM - 10:00 PM",
+            phoneNumber: "+1 (555) 123-4567"
+        )
     }
-    */
+    
+    static func createFallbackStoreDetails(for mapItem: MKMapItem) -> StoreDetails {
+        return createMockStoreDetails(for: mapItem) // Add 'for: mapItem' parameter
+    }
 
-// MODAL CODE - USES STORE DETAILS AS TYPE//
+// MODAL CODE - USES STORE DETAILS AS TYPE //
     
     struct StoreDetailModal: View {
         let store: SelectedStore
@@ -1004,9 +1022,128 @@ func itemCard(item: storeItem) -> some View {
     }
 }
 
+func loadStoreDetails(for mapItem: MKMapItem) async -> StoreDetails {
+    let network = NetworkService()
+    
+    do {
+        let requestBody = StoreLookupRequest(
+            geolocation: "\(mapItem.placemark.coordinate.latitude), \(mapItem.placemark.coordinate.longitude)",
+            getStoreInfo: true,
+            getItems: true,
+            getDeals: true,
+            getReviews: true,
+            reviewLimit: 10,
+            reviewOffset: 0
+        )
+        
+        // Make API call to your Rust backend
+        let response: StoreLookupResponse? = try await network.requestEndpoint(
+            endpoint: "/store/lookup",
+            method: "POST",
+            body: requestBody
+        )
+        
+        // If successful, convert backend response to StoreDetails
+        if let response = response {
+            return convertToStoreDetails(from: response, mapItem: mapItem)
+        } else {
+            return await MapView.createFallbackStoreDetails(for: mapItem)
+        }
+        
+    } catch {
+        print("Failed to load store details:", error)
+        // Fall back to mock data on error
+        return await MapView.createFallbackStoreDetails(for: mapItem)
+    }
+}
+
+func convertToStoreDetails(from response: StoreLookupResponse, mapItem: MKMapItem) -> StoreDetails {
+    // Convert BackendItem to storeItem
+    let items = response.items?.map { backendItem in
+        storeItem(
+            name: backendItem.name,
+            brand: backendItem.manufacturer ?? "Unknown",
+            price: backendItem.price,
+            quantity: 1
+        )
+    } ?? []
+    
+    // Convert BackendDeal to Deals
+    let deals: [Deals] = response.deals?.compactMap { backendDeal in
+        let dealType: DealType = mapDealType(type: backendDeal.type, value1: backendDeal.value1, value2: backendDeal.value2)
+        
+        return Deals(
+            type: dealType,
+            category: "General",
+            itemsAppliedTo: [],
+            description: backendDeal.description ?? backendDeal.name
+        )
+    } ?? []
+    
+    // Calculate average rating from reviews
+    let averageRating = response.reviews?.isEmpty == false ?
+        response.reviews!.reduce(0.0) { $0 + $1.rating } / Double(response.reviews!.count) : 4.0
+    
+    // Format open hours
+    let hoursString = formatOpenHours(response.store?.openHours)
+    
+    return StoreDetails(
+        storeTitle: response.store?.name ?? mapItem.name ?? "Unknown Store",
+        storeDescription: response.store?.description ?? "No description available",
+        storeRating: averageRating,
+        storeAddress: mapItem.placemark.title ?? "Address not available",
+        storeImages: [],
+        storeDeals: deals,
+        itemList: items,
+        storeHours: hoursString,
+        phoneNumber: response.store?.phone ?? "Phone not available"
+    )
+}
+
+func mapDealType(type: Int, value1: Double, value2: Double?) -> DealType {
+    switch type {
+    case 1:
+        return .percentageOff(Int(value1))
+    case 2:
+        if let value2 = value2 {
+            return .buyXGetYPercentOff(Int(value1), Int(value2))
+        }
+        return .percentageOff(Int(value1))
+    case 3:
+        if let value2 = value2 {
+            return .buyXGetY(Int(value1), Int(value2))
+        }
+        return .percentageOff(Int(value1))
+    default:
+        return .percentageOff(Int(value1))
+    }
+}
+
+func formatOpenHours(_ hours: [[String]]?) -> String {
+    guard let hours = hours, hours.count >= 7 else {
+        return "Hours not available"
+    }
+    
+    let dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    var formattedHours: [String] = []
+    
+    for (index, dayHours) in hours.enumerated() {
+        if index < dayNames.count && dayHours.count >= 2 {
+            let dayName = dayNames[index]
+            let openTime = dayHours[0]
+            let closeTime = dayHours[1]
+            formattedHours.append("\(dayName): \(openTime) - \(closeTime)")
+        }
+    }
+    
+    return formattedHours.isEmpty ? "Hours not available" : formattedHours.joined(separator: "\n")
+}
+
 struct MapView_Previews: PreviewProvider {
     static var previews: some View {
         MapView()
     }
 }
+
+
 

@@ -14,53 +14,48 @@ struct profileView: View {
     @State private var showEditProfile = false // edit button
     @State private var showSettings = false
     @State private var showTOS = false
-    
-// FAKE ACCOUNT //
-    @State private var user = userProfile(
-        username: "foodie_explorer",
-        profileID: 12345,
-        profilePic: "person.crop.circle.fill",
-        subscribed: true,
-        savedRecipes: [1, 2, 3, 4, 5],
-        personalLists: [
-            lists(itemsInList: []),
-            lists(itemsInList: []),
-            lists(itemsInList: [])
-        ],
-        savedReviews: [
-            (4.5, "Amazing pasta!", MKMapItem()),
-            (5.0, "Best coffee in town", MKMapItem()),
-            (4.0, "Great ambiance", MKMapItem())
-        ],
-        aiGeneratedLists: [
-            lists(itemsInList: []),
-            lists(itemsInList: [])
-        ],
-        fameStats: fame(
-            followers: 1247,
-            following: 892,
-            listOfFollowersIDs: [],
-            listOfFollowingIDs: []
-        )
-    )
+    @StateObject private var authManager = AuthenticationManager()
+    @State private var user: UserInfo? = nil
+    @State private var userReviews: [UserReview] = []
+    @State private var savedRecipes: [Recipes] = []
+    @State private var isSavingProfile = false
+    @State private var showFollowingView = false
+    @State private var followingViewStartTab = 0 // 0 for followers, 1 for following
+    @State private var isChangingPassword = false
+    @State private var passwordError: String?
+    @State private var showSuccessMessage = false
     
     var body: some View {
         ZStack {
             KoiBackgroundView()
             
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Vertical Stack of the Different Sections
-                    profileHeaderView()
-                        .padding(.top, 20)
-                    statsSection()
-                        .padding(.top, 20)
-                    tabSelector()
-                        .padding(.top, 30)
-                    tabContent()
-                        .padding(.top, 20)
+            if user != nil {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Vertical Stack of the Different Sections
+                        profileHeaderView()
+                            .padding(.top, 20)
+                        statsSection()
+                            .padding(.top, 20)
+                        tabSelector()
+                            .padding(.top, 30)
+                        tabContent()
+                            .padding(.top, 20)
+                    }
+                    .padding(.horizontal, 20)
                 }
-                .padding(.horizontal, 20)
+            } else {
+                ProgressView("Loading profile...")
+                    .task {
+                        do {
+                            let profile = try await extractUserProfile()
+                            user = profile?.user
+                            userReviews = profile?.reviews ?? []
+                            savedRecipes = profile?.recipes ?? []
+                        } catch {
+                            print("Failed to load user profile: \(error)")
+                        }
+                    }
             }
         }
         .onAppear {
@@ -84,8 +79,12 @@ struct profileView: View {
         }) {
             showTos()
         }
+        .sheet(isPresented: $showFollowingView, onDismiss: {
+            showFollowingView = false
+        }) { // following/followers modal
+            followingViewSheet()
+        }
     }
-    
     // for the top part of the view, includes the buttons
     @ViewBuilder
     private func profileHeaderView() -> some View {
@@ -107,7 +106,7 @@ struct profileView: View {
                         .stroke(Color.white.opacity(0.6), lineWidth: 2)
                         .frame(width: 140, height: 140)
                     
-                    Image(systemName: user.profilePic)
+                    Image(systemName: "person.crop.circle.fill")
                         .font(.system(size: 60))
                         .foregroundStyle(
                             LinearGradient(
@@ -122,8 +121,7 @@ struct profileView: View {
                 
                 // username
                 VStack(spacing: 8) {
-                    Text("@\(user.username)")
-                        .font(.title2)
+                    Text("@\(user?.name ?? "")")                        .font(.title2)
                         .fontWeight(.bold)
                         .foregroundStyle(
                             LinearGradient(
@@ -134,7 +132,7 @@ struct profileView: View {
                         )
                     
                     // subscription badge
-                    if user.subscribed {
+                    if user?.isSubscribed == true {
                         HStack(spacing: 6) {
                             // Golden Koi fish icon
                             ZStack {
@@ -216,7 +214,7 @@ struct profileView: View {
             .shadow(color: Color.black.opacity(0.05), radius: 20, x: 0, y: 10)
             
             // premium floating badge on profile pic
-            if user.subscribed {
+            if user?.isSubscribed == true {
                 HStack(spacing: 6) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 14, weight: .semibold))
@@ -246,7 +244,7 @@ struct profileView: View {
     // settings button
     @ViewBuilder
     private func settingsSheet() -> some View {
-        @State var tempEmail = "user@example.com"
+        @State var tempEmail = user?.email ?? ""
         @State var tempCurrentPassword = ""
         @State var tempNewPassword = ""
         @State var tempConfirmPassword = ""
@@ -326,196 +324,339 @@ struct profileView: View {
             .alert("Delete Account", isPresented: $showDeleteConfirmation) {
                 Button("Cancel", role: .cancel) { }
                 Button("Delete", role: .destructive) {
-                    // Handle account deletion
+                    Task {
+                        await deleteAccount()
+                    }
                 }
             } message: {
                 Text("Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently lost.")
             }
         }
     }
-
+    
     // settings modal
     @ViewBuilder
     private func accountSettingsSection(tempEmail: Binding<String>) -> some View {
         VStack(spacing: 20) {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 8) {
-                    Image(systemName: "person.circle.fill")
-                        .font(.title3)
-                        .foregroundColor(.purple.opacity(0.7))
-                    
-                    Text("Account Settings")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-                }
+                // Header section
+                accountSettingsHeader()
                 
                 // Email field
-                editField(
-                    title: "Email Address",
-                    text: tempEmail,
-                    icon: "envelope.fill",
-                    placeholder: "Enter your email"
-                )
+                emailSection(tempEmail: tempEmail)
                 
-                Button(action: {
-                    // Handle password change
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.caption)
-                        Text("Update Email")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.purple.opacity(0.9))
-                    )
-                    .shadow(color: Color.purple.opacity(0.3), radius: 8, x: 0, y: 4)
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
+                // Update button
+                updateEmailButton(tempEmail: tempEmail)
                 
-                // Account Type Display
-                HStack {
-                    Image(systemName: user.subscribed ? "crown.fill" : "person.fill")
-                        .font(.title3)
-                        .foregroundColor(user.subscribed ? .orange : .purple.opacity(0.7))
-                        .frame(width: 24)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Account Type")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        
-                        Text(user.subscribed ? "KOI Premium" : "Free Account")
-                            .font(.caption)
-                            .foregroundColor(user.subscribed ? .orange : .secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    if !user.subscribed {
-                        Button("Upgrade") {
-                            // Handle premium upgrade
-                        }
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.purple.opacity(0.9))
-                        )
-                        .frame(maxWidth: .infinity, alignment: .center)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(user.subscribed ? .orange.opacity(0.2) : .purple.opacity(0.2))
-                )
+                // Account type section
+                accountTypeSection()
             }
         }
         .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white.opacity(0.35))
-                .blur(radius: 0.5)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.6), lineWidth: 1)
-        )
+        .background(containerBackground())
+        .overlay(containerBorder())
         .shadow(color: Color.black.opacity(0.05), radius: 15, x: 0, y: 8)
     }
-
-    // password changing section
+    
     @ViewBuilder
-    private func securitySettingsSection(
+    private func accountSettingsHeader() -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "person.circle.fill")
+                .font(.title3)
+                .foregroundColor(.purple.opacity(0.7))
+            
+            Text("Account Settings")
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+        }
+    }
+    
+    @ViewBuilder
+    private func emailSection(tempEmail: Binding<String>) -> some View {
+        editField(
+            title: "Email Address",
+            text: tempEmail,
+            icon: "envelope.fill",
+            placeholder: "Enter your email"
+        )
+    }
+    
+    @ViewBuilder
+    private func updateEmailButton(tempEmail: Binding<String>) -> some View {
+        Button(action: {
+            Task {
+                isSavingProfile = true
+                await saveUserChanges(
+                    username: user?.name,
+                    bio: user?.bio,
+                    email: tempEmail.wrappedValue,
+                    allergies: user?.allergies
+                )
+                isSavingProfile = false
+                
+                await MainActor.run {
+                    showEditProfile = false
+                }
+            }
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.caption)
+                Text("Update Email")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(updateButtonBackground())
+            .shadow(color: Color.purple.opacity(0.3), radius: 8, x: 0, y: 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+    
+    @ViewBuilder
+    private func accountTypeSection() -> some View {
+        HStack {
+            accountTypeIcon()
+            accountTypeInfo()
+            Spacer()
+            upgradeButtonIfNeeded()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(accountTypeBackground())
+    }
+    
+    @ViewBuilder
+    private func accountTypeIcon() -> some View {
+        Image(systemName: user?.isSubscribed == true ? "crown.fill" : "person.fill")
+            .font(.title3)
+            .foregroundColor(user?.isSubscribed == true ? .orange : .purple.opacity(0.7))
+            .frame(width: 24)
+    }
+    
+    @ViewBuilder
+    private func accountTypeInfo() -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Account Type")
+                .font(.body)
+                .fontWeight(.medium)
+            
+            Text(user?.isSubscribed == true ? "KOI Premium" : "Free Account")
+                .font(.caption)
+                .foregroundColor(user?.isSubscribed == true ? .orange : .secondary)
+        }
+    }
+    
+    @ViewBuilder
+    private func upgradeButtonIfNeeded() -> some View {
+        if user?.isSubscribed != true {
+            Button("Upgrade") {
+                // Handle premium upgrade
+            }
+            .font(.caption)
+            .fontWeight(.semibold)
+            .foregroundColor(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(upgradeButtonBackground())
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+    
+    private func containerBackground() -> some View {
+        RoundedRectangle(cornerRadius: 20)
+            .fill(Color.white.opacity(0.35))
+            .blur(radius: 0.5)
+    }
+    
+    private func containerBorder() -> some View {
+        RoundedRectangle(cornerRadius: 20)
+            .stroke(Color.white.opacity(0.6), lineWidth: 1)
+    }
+    
+    private func updateButtonBackground() -> some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(Color.purple.opacity(0.9))
+    }
+    
+    private func upgradeButtonBackground() -> some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(Color.purple.opacity(0.9))
+    }
+    
+    private func accountTypeBackground() -> some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(user?.isSubscribed == true ? .orange.opacity(0.2) : .purple.opacity(0.2))
+    }
+    
+    // password changing section
+    private func handlePasswordChange(
+        current: String,
+        new: String,
+        confirm: String,
         tempCurrentPassword: Binding<String>,
         tempNewPassword: Binding<String>,
         tempConfirmPassword: Binding<String>
-    ) -> some View {
-        VStack(spacing: 20) {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 8) {
-                    Image(systemName: "lock.shield.fill")
-                        .font(.title3)
-                        .foregroundColor(.purple.opacity(0.7))
-                    
-                    Text("Security")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-                }
-                
-                // Current Password
-                secureField(
-                    title: "Current Password",
-                    text: tempCurrentPassword,
-                    icon: "key.fill",
-                    placeholder: "Enter current password"
-                )
-                
-                // New Password
-                secureField(
-                    title: "New Password",
-                    text: tempNewPassword,
-                    icon: "lock.fill",
-                    placeholder: "Enter new password"
-                )
-                
-                // Confirm Password
-                secureField(
-                    title: "Confirm New Password",
-                    text: tempConfirmPassword,
-                    icon: "lock.fill",
-                    placeholder: "Confirm new password"
-                )
-                
-                // Change Password Button
-                Button(action: {
-                    // Handle password change
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.caption)
-                        Text("Update Password")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.purple.opacity(0.9))
-                    )
-                    .shadow(color: Color.purple.opacity(0.3), radius: 8, x: 0, y: 4)
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
+    ) async {
+        // Reset previous states
+        await MainActor.run {
+            passwordError = nil
+            showSuccessMessage = false
+            isChangingPassword = true
+        }
+        
+        // Validate passwords using your existing validatePasswords function
+        let validation = validatePasswords(current: current, new: new, confirm: confirm)
+        if !validation.isValid {
+            await MainActor.run {
+                passwordError = validation.error
+                isChangingPassword = false
+            }
+            return
+        }
+        
+        // Make API call using your existing changePassword function
+        do {
+            try await changePassword(oldPassword: current, newPassword: new)
+            
+            // Success - clear fields and show success message
+            await MainActor.run {
+                tempCurrentPassword.wrappedValue = ""
+                tempNewPassword.wrappedValue = ""
+                tempConfirmPassword.wrappedValue = ""
+                showSuccessMessage = true
+                isChangingPassword = false
+            }
+            
+            // Hide success message after 3 seconds
+            try await Task.sleep(nanoseconds: 3_000_000_000)
+            await MainActor.run {
+                showSuccessMessage = false
+            }
+            
+        } catch {
+            // Handle error
+            await MainActor.run {
+                passwordError = "Failed to update password. Please check your current password and try again."
+                isChangingPassword = false
             }
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white.opacity(0.35))
-                .blur(radius: 0.5)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.6), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.05), radius: 15, x: 0, y: 8)
     }
 
-// app preferences
+    @ViewBuilder
+    private func securitySettingsSection(
+            tempCurrentPassword: Binding<String>,
+            tempNewPassword: Binding<String>,
+            tempConfirmPassword: Binding<String>
+        ) -> some View {
+            VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.title3)
+                            .foregroundColor(.purple.opacity(0.7))
+
+                        Text("Security")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                    }
+
+                    // Current Password
+                    secureField(
+                        title: "Current Password",
+                        text: tempCurrentPassword,
+                        icon: "key.fill",
+                        placeholder: "Enter current password"
+                    )
+
+                    // New Password
+                    secureField(
+                        title: "New Password",
+                        text: tempNewPassword,
+                        icon: "lock.fill",
+                        placeholder: "Enter new password"
+                    )
+
+                    // Confirm Password
+                    secureField(
+                        title: "Confirm New Password",
+                        text: tempConfirmPassword,
+                        icon: "lock.fill",
+                        placeholder: "Confirm new password"
+                    )
+
+                    Button(action: {
+                        Task {
+                            await handlePasswordChange(
+                                current: tempCurrentPassword.wrappedValue,
+                                new: tempNewPassword.wrappedValue,
+                                confirm: tempConfirmPassword.wrappedValue,
+                                tempCurrentPassword: tempCurrentPassword,
+                                tempNewPassword: tempNewPassword,
+                                tempConfirmPassword: tempConfirmPassword
+                            )
+                        }
+                    }) {
+                        HStack(spacing: 8) {
+                            if isChangingPassword {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.caption)
+                            }
+                            Text(isChangingPassword ? "Updating..." : "Update Password")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.purple.opacity(isChangingPassword ? 0.6 : 0.9))
+                        )
+                        .shadow(color: Color.purple.opacity(0.3), radius: 8, x: 0, y: 4)
+                    }
+                    .disabled(isChangingPassword)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    
+                    // Error message
+                    if let passwordError = passwordError {
+                        Text(passwordError)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                    
+                    // Success message
+                    if showSuccessMessage {
+                        Text("Password updated successfully!")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                }
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color.white.opacity(0.35))
+                    .blur(radius: 0.5)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.white.opacity(0.6), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.05), radius: 15, x: 0, y: 8)
+    }
+    
+    // app preferences
     @ViewBuilder
     private func appSettingsSection() -> some View {
         VStack(spacing: 20) {
@@ -567,8 +708,8 @@ struct profileView: View {
         )
         .shadow(color: Color.black.opacity(0.05), radius: 15, x: 0, y: 8)
     }
-
-// about and legal part
+    
+    // about and legal part
     @ViewBuilder
     private func aboutSection() -> some View {
         VStack(spacing: 20) {
@@ -656,7 +797,7 @@ struct profileView: View {
         )
         .shadow(color: Color.black.opacity(0.05), radius: 15, x: 0, y: 8)
     }
-
+    
     // delete and sign out features
     @ViewBuilder
     private func dangerZoneSection(showDeleteConfirmation: Binding<Bool>) -> some View {
@@ -681,7 +822,9 @@ struct profileView: View {
                     hasChevron: false,
                     textColor: .orange
                 ) {
-                    // Handle sign out
+                    Task {
+                        await logout()
+                    }
                 }
                 
                 Divider()
@@ -711,7 +854,7 @@ struct profileView: View {
         )
         .shadow(color: Color.red.opacity(0.05), radius: 15, x: 0, y: 8)
     }
-
+    
     // Helper function for secure text fields
     @ViewBuilder
     private func secureField(title: String, text: Binding<String>, icon: String, placeholder: String) -> some View {
@@ -741,7 +884,7 @@ struct profileView: View {
                 )
         }
     }
-
+    
     // Helper function for settings rows
     @ViewBuilder
     private func settingsRow(
@@ -974,7 +1117,7 @@ struct profileView: View {
             showTOS = false
         }
     }
-
+    
     // Helper function for TOS sections
     @ViewBuilder
     private func tosSection(title: String, content: String, icon: String, accentColor: Color) -> some View {
@@ -1013,19 +1156,30 @@ struct profileView: View {
     @ViewBuilder
     private func statsSection() -> some View {
         HStack(spacing: 0) {
-            statCard(title: "Recipes", value: "\(user.savedRecipes.count)", icon: "book.fill")
+            // Recipes card (not clickable)
+            statCard(title: "Recipes", value: "\(userReviews.count)", icon: "book.fill", isClickable: false) {
+                // No action for recipes
+            }
             
             Divider()
                 .frame(height: 40)
                 .background(Color.white.opacity(0.3))
             
-            statCard(title: "Followers", value: formatNumber(user.fameStats.followers), icon: "heart.fill")
+            // Followers card (clickable)
+            statCard(title: "Followers", value: formatNumber(user?.followers ?? 0), icon: "heart.fill", isClickable: true) {
+                followingViewStartTab = 0 // Start on followers tab
+                showFollowingView = true
+            }
             
             Divider()
                 .frame(height: 40)
                 .background(Color.white.opacity(0.3))
             
-            statCard(title: "Following", value: formatNumber(user.fameStats.following), icon: "person.2.fill")
+            // Following card (clickable)
+            statCard(title: "Following", value: formatNumber(user?.following ?? 0), icon: "person.2.fill", isClickable: true) {
+                followingViewStartTab = 1 // Start on following tab
+                showFollowingView = true
+            }
         }
         .padding(.vertical, 20)
         .background(
@@ -1039,31 +1193,61 @@ struct profileView: View {
         )
         .shadow(color: Color.black.opacity(0.03), radius: 15, x: 0, y: 8)
     }
-    
-    // helper function to build the card
+
+    // Updated statCard helper function with navigation capability
     @ViewBuilder
-    private func statCard(title: String, value: String, icon: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color.purple.opacity(0.7), Color.blue.opacity(0.5)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+    private func statCard(title: String, value: String, icon: String, isClickable: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.purple.opacity(0.7), Color.blue.opacity(0.5)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
-            
-            Text(value)
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(.primary)
-            
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
+                
+                Text(value)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+                
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .scaleEffect(isClickable ? 1.0 : 1.0) // You can add subtle hover effects here if needed
         }
-        .frame(maxWidth: .infinity)
+        .buttonStyle(PlainButtonStyle())
+        .disabled(!isClickable)
+    }
+    
+    @ViewBuilder
+    private func followingViewSheet() -> some View {
+        NavigationView {
+            followingView(initialTab: followingViewStartTab)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Text(followingViewStartTab == 0 ? "Followers" : "Following")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+                    
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") {
+                            showFollowingView = false
+                        }
+                        .foregroundColor(.purple)
+                        .fontWeight(.semibold)
+                    }
+                }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
     
     // shows the 4 tabs: recipes, lists, reviews, and AI lists
@@ -1129,17 +1313,18 @@ struct profileView: View {
     @ViewBuilder
     private func recipesTab() -> some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
-            ForEach(user.savedRecipes, id: \.self) { recipeId in
-                recipeCard(id: recipeId)
+            ForEach(savedRecipes, id: \.uuid) { oneRecipe in
+                recipeCard(recipe: oneRecipe)
             }
         }
     }
     
     // helper function to display lists
+    // user.personalLists
     @ViewBuilder
     private func listsTab() -> some View {
         VStack(spacing: 12) {
-            ForEach(0..<user.personalLists.count, id: \.self) { index in
+            ForEach(0..<userReviews.count, id: \.self) { index in
                 listCard(title: "My List #\(index + 1)", itemCount: Int.random(in: 3...12))
             }
         }
@@ -1149,17 +1334,18 @@ struct profileView: View {
     @ViewBuilder
     private func reviewsTab() -> some View {
         VStack(spacing: 12) {
-            ForEach(0..<user.savedReviews.count, id: \.self) { index in
-                reviewCard(review: user.savedReviews[index])
+            ForEach(0..<userReviews.count, id: \.self) { index in
+                reviewCard(review: userReviews[index])
             }
         }
     }
     
     // helper function to display aiLists
+    // user.aiGeneratedLists
     @ViewBuilder
     private func aiListsTab() -> some View {
         VStack(spacing: 12) {
-            ForEach(0..<user.aiGeneratedLists.count, id: \.self) { index in
+            ForEach(0..<userReviews.count, id: \.self) { index in
                 aiListCard(title: "AI Suggestion #\(index + 1)")
             }
         }
@@ -1167,7 +1353,7 @@ struct profileView: View {
     
     // helper function for the recipes card
     @ViewBuilder
-    private func recipeCard(id: Int) -> some View {
+    private func recipeCard(recipe: Recipes) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             RoundedRectangle(cornerRadius: 12)
                 .fill(
@@ -1184,9 +1370,27 @@ struct profileView: View {
                         .foregroundColor(.white)
                 )
             
-            Text("Recipe #\(id)")
+            Text(recipe.name)
                 .font(.headline)
                 .fontWeight(.semibold)
+            
+            /*
+             public struct Ingredient {
+             let name: String
+             let amount: Int
+             let unit: String
+             }
+             
+             public struct Recipes: Codable {
+             let uuid: Int
+             let userUuid: Int
+             let name: String
+             let ingredients: [Ingredient]
+             let cateogory: String?
+             let image: String?
+             }
+             fix this using this struct
+             */
             
             Text("Delicious recipe description")
                 .font(.caption)
@@ -1244,11 +1448,11 @@ struct profileView: View {
     
     // helper function for the review card
     @ViewBuilder
-    private func reviewCard(review: (Double, String, MKMapItem)) -> some View {
+    private func reviewCard(review: UserReview) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 ForEach(0..<5) { star in
-                    Image(systemName: star < Int(review.0) ? "star.fill" : "star")
+                    Image(systemName: star < Int(review.rating) ? "star.fill" : "star")
                         .foregroundColor(.yellow)
                         .font(.caption)
                 }
@@ -1260,7 +1464,7 @@ struct profileView: View {
                     .foregroundColor(.secondary)
             }
             
-            Text(review.1)
+            Text(review.description)
                 .font(.body)
                 .lineLimit(3)
         }
@@ -1325,7 +1529,7 @@ struct profileView: View {
         )
     }
     
-// Edit Button //
+    // Edit Button //
     
     // modern button design for edit, share, and settings
     @ViewBuilder
@@ -1357,9 +1561,15 @@ struct profileView: View {
     // the edit profile button
     @ViewBuilder
     private func editProfileSheet() -> some View {
-        @State var tempUsername = user.username
-        @State var tempBio = "Food enthusiast & recipe collector 🍜"
-        @State var tempLocation = "San Francisco, CA"
+        @State var tempUsername = user?.name ?? ""
+        @State var tempBio: String = {
+            guard let bio = user?.bio, !bio.isEmpty else {
+                return "Food enthusiast & recipe collector 🍜"
+            }
+            return bio
+        }()
+        @State var tempAllergies: [String] = user?.allergies ?? []
+        @State var tempPreferences: [String] = user?.preferences ?? []
         @State var tempPrivateAccount = false
         @State var tempNotifications = true
         
@@ -1402,24 +1612,31 @@ struct profileView: View {
                         // Profile Picture Section
                         profilePictureEditSection()
                         
-                        // Basic Info Section
-                        basicInfoSection(tempUsername: $tempUsername, tempBio: $tempBio, tempLocation: $tempLocation)
+                        // Basic Info Section (now includes allergies, removes location)
+                        basicInfoSection(
+                            tempUsername: $tempUsername,
+                            tempBio: $tempBio,
+                            tempAllergies: $tempAllergies,
+                            tempPreferences: $tempPreferences
+                        )
                         
                         // Privacy Settings Section
-                        privacySettingsSection(tempPrivateAccount: $tempPrivateAccount, tempNotifications: $tempNotifications)
+                        privacySettingsSection(
+                            tempPrivateAccount: $tempPrivateAccount
+                        )
                         
                         // Premium Section (if subscribed)
-                        if user.subscribed {
+                        if user?.isSubscribed == true {
                             premiumSection()
                         }
                         
-                        // Action Buttons
+                        // Action Buttons (updated to include allergies)
                         actionButtonsSection(
                             tempUsername: tempUsername,
                             tempBio: tempBio,
-                            tempLocation: tempLocation,
-                            tempPrivateAccount: tempPrivateAccount,
-                            tempNotifications: tempNotifications
+                            tempAllergies: tempAllergies,
+                            tempPreferences: tempPreferences, // Add this
+                            tempPrivateAccount: tempPrivateAccount
                         )
                     }
                     .padding(.horizontal, 20)
@@ -1451,7 +1668,7 @@ struct profileView: View {
                     .stroke(Color.white.opacity(0.6), lineWidth: 2)
                     .frame(width: 120, height: 120)
                 
-                Image(systemName: user.profilePic)
+                Image(systemName: "person.circle.fill")
                     .font(.system(size: 50))
                     .foregroundStyle(
                         LinearGradient(
@@ -1497,9 +1714,14 @@ struct profileView: View {
     
     // edit the basic info
     @ViewBuilder
-    private func basicInfoSection(tempUsername: Binding<String>, tempBio: Binding<String>, tempLocation: Binding<String>) -> some View {
+    private func basicInfoSection(
+        tempUsername: Binding<String>,
+        tempBio: Binding<String>,
+        tempAllergies: Binding<[String]>,
+        tempPreferences: Binding<[String]> // Add this parameter
+    ) -> some View {
         VStack(spacing: 20) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 16) {
                 Text("Basic Information")
                     .font(.headline)
                     .fontWeight(.semibold)
@@ -1521,29 +1743,20 @@ struct profileView: View {
                     placeholder: "Tell us about yourself"
                 )
                 
-                // Location field
-                editField(
-                    title: "Location",
-                    text: tempLocation,
-                    icon: "location",
-                    placeholder: "Your city"
-                )
+                // Allergies section
+                allergySelectionSection(selectedAllergies: tempAllergies)
+                
+                // Preferences section (NEW)
+                preferencesSelectionSection(selectedPreferences: tempPreferences)
             }
         }
         .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white.opacity(0.35))
-                .blur(radius: 0.5)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.6), lineWidth: 1)
-        )
+        .background(containerBackground())
+        .overlay(containerBorder())
         .shadow(color: Color.black.opacity(0.05), radius: 15, x: 0, y: 8)
     }
     
-    // edit field for the user's description
+    // Updated editField to work with non-optional strings
     @ViewBuilder
     private func editField(title: String, text: Binding<String>, icon: String, placeholder: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1572,10 +1785,176 @@ struct profileView: View {
                 )
         }
     }
+    // New allergies selection section with Discord-style tags
+    @ViewBuilder
+    private func allergySelectionSection(selectedAllergies: Binding<[String]>) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundColor(.red.opacity(0.7))
+                Text("Allergies & Dietary Restrictions")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+            }
+            
+            // Available allergy tags
+            let commonAllergies = [
+                "Nuts", "Dairy", "Eggs", "Gluten", "Soy", "Fish", "Shellfish",
+                "Sesame", "Wheat", "Peanuts", "Tree Nuts", "Lactose",
+                "Vegetarian", "Vegan", "Kosher", "Halal"
+            ]
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                ForEach(commonAllergies, id: \.self) { allergy in
+                    allergyTag(
+                        allergy: allergy,
+                        isSelected: selectedAllergies.wrappedValue.contains(allergy),
+                        onTap: {
+                            if selectedAllergies.wrappedValue.contains(allergy) {
+                                selectedAllergies.wrappedValue.removeAll { $0 == allergy }
+                            } else {
+                                selectedAllergies.wrappedValue.append(allergy)
+                            }
+                        }
+                    )
+                }
+            }
+            
+            // Show selected allergies count
+            if !selectedAllergies.wrappedValue.isEmpty {
+                Text("\(selectedAllergies.wrappedValue.count) restriction\(selectedAllergies.wrappedValue.count == 1 ? "" : "s") selected")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
+            }
+        }
+    }
+
+    // Individual allergy tag component
+    @ViewBuilder
+    private func allergyTag(allergy: String, isSelected: Bool, onTap: @escaping () -> Void) -> some View {
+        Button(action: onTap) {
+            HStack(spacing: 4) {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.white)
+                }
+                
+                Text(allergy)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? Color.red.opacity(0.8) : Color.white.opacity(0.6))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        isSelected ? Color.red.opacity(0.3) : Color.gray.opacity(0.3),
+                        lineWidth: 1
+                    )
+            )
+            .foregroundColor(isSelected ? .white : .primary)
+            .scaleEffect(isSelected ? 1.02 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    // New preferences selection section with Discord-style tags
+    @ViewBuilder
+    private func preferencesSelectionSection(selectedPreferences: Binding<[String]>) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "leaf.fill")
+                    .font(.caption)
+                    .foregroundColor(.green.opacity(0.7))
+                Text("Dietary Preferences")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+            }
+            
+            // Available preference tags
+            let dietaryPreferences = [
+                "Vegetarian", "Vegan", "Pescatarian", "Keto", "Paleo", "Mediterranean",
+                "Low Carb", "High Protein", "Organic", "Raw Food", "Gluten-Free",
+                "Dairy-Free", "Sugar-Free", "Low Sodium", "Whole Foods", "Plant-Based"
+            ]
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                ForEach(dietaryPreferences, id: \.self) { preference in
+                    preferenceTag(
+                        preference: preference,
+                        isSelected: selectedPreferences.wrappedValue.contains(preference),
+                        onTap: {
+                            if selectedPreferences.wrappedValue.contains(preference) {
+                                selectedPreferences.wrappedValue.removeAll { $0 == preference }
+                            } else {
+                                selectedPreferences.wrappedValue.append(preference)
+                            }
+                        }
+                    )
+                }
+            }
+            
+            // Show selected preferences count
+            if !selectedPreferences.wrappedValue.isEmpty {
+                Text("\(selectedPreferences.wrappedValue.count) preference\(selectedPreferences.wrappedValue.count == 1 ? "" : "s") selected")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
+            }
+        }
+        .padding(.top, 16) // Add some spacing from allergies section
+    }
+
+    // Individual preference tag component
+    @ViewBuilder
+    private func preferenceTag(preference: String, isSelected: Bool, onTap: @escaping () -> Void) -> some View {
+        Button(action: onTap) {
+            HStack(spacing: 4) {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.white)
+                }
+                
+                Text(preference)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? Color.green.opacity(0.8) : Color.white.opacity(0.6))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        isSelected ? Color.green.opacity(0.3) : Color.gray.opacity(0.3),
+                        lineWidth: 1
+                    )
+            )
+            .foregroundColor(isSelected ? .white : .primary)
+            .scaleEffect(isSelected ? 1.02 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
     
     // privacy settings
     @ViewBuilder
-    private func privacySettingsSection(tempPrivateAccount: Binding<Bool>, tempNotifications: Binding<Bool>) -> some View {
+    private func privacySettingsSection(tempPrivateAccount: Binding<Bool>) -> some View {
         VStack(spacing: 20) {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Privacy & Notifications")
@@ -1589,14 +1968,6 @@ struct profileView: View {
                     subtitle: "Only followers can see your recipes",
                     icon: "lock.fill",
                     isOn: tempPrivateAccount
-                )
-                
-                // Notifications toggle
-                toggleSetting(
-                    title: "Push Notifications",
-                    subtitle: "Get notified about new followers & recipes",
-                    icon: "bell.fill",
-                    isOn: tempNotifications
                 )
             }
         }
@@ -1746,22 +2117,40 @@ struct profileView: View {
     private func actionButtonsSection(
         tempUsername: String,
         tempBio: String,
-        tempLocation: String,
-        tempPrivateAccount: Bool,
-        tempNotifications: Bool
+        tempAllergies: [String],
+        tempPreferences: [String],
+        tempPrivateAccount: Bool
     ) -> some View {
         VStack(spacing: 12) {
             // Save button
             Button(action: {
-                // Save all changes
-                user.username = tempUsername
-                // Save other changes to backend
-                showEditProfile = false
+                Task {
+                    isSavingProfile = true
+                    await saveUserChanges(
+                        username: tempUsername,
+                        bio: tempBio,
+                        email: user?.email,
+                        allergies: tempAllergies,
+                        preferences: tempPreferences
+                    )
+                    isSavingProfile = false
+                    
+                    await MainActor.run {
+                        showEditProfile = false
+                    }
+                }
             }) {
                 HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.body)
-                    Text("Save Changes")
+                    if isSavingProfile {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    } else {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.body)
+                    }
+                    
+                    Text(isSavingProfile ? "Saving..." : "Save Changes")
                         .font(.body)
                         .fontWeight(.semibold)
                 }
@@ -1770,10 +2159,11 @@ struct profileView: View {
                 .padding(.vertical, 16)
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.purple.opacity(0.9))
+                        .fill(Color.purple.opacity(isSavingProfile ? 0.6 : 0.9))
                 )
                 .shadow(color: Color.purple.opacity(0.3), radius: 12, x: 0, y: 6)
             }
+            .disabled(isSavingProfile)
             
             // Cancel button
             Button(action: {
@@ -1831,11 +2221,248 @@ struct profileView: View {
         return "\(number)"
     }
     
-    private func extractUserProfile() {
-        // pretend this extracts userProfile from the backend!
+    private func extractUserProfile() async throws -> UserProfileResponse? {
+        let network = NetworkService()
+        
+        do {
+            guard KeychainManager.instance.getToken(forKey: "authToken") != nil else {
+                throw AuthError.noData
+            }
+            
+            let user: UserInfo? = getUserFromDefaults()
+            
+            let listOfUserReviews: ReviewsResponse? = try await network.requestEndpoint(
+                endpoint: "/user/get-reviews",
+                method: "POST",
+                body: [
+                    "limit": 5,
+                    "offset": 5,
+                ]
+            )
+            
+            guard let userUuid = user?.uuid else {
+                print("User UUID is not available")
+                return nil
+            }
+
+            let request = GetRecipesRequest(
+                uuid: userUuid,
+                type: 0,
+                limit: 5,
+                offset: 5
+            )
+            
+            let listOfUserRecipes: RecipesResponse? = try await network.requestEndpoint(
+                endpoint: "/user/get-recipes",
+                method: "POST",
+                body: request
+            )
+            
+            let response = UserProfileResponse(
+                user: user,
+                reviews: listOfUserReviews?.reviews,
+                recipes: listOfUserRecipes?.recipes
+            )
+            
+            return response
+            
+        } catch {
+            print("Request failed:", error)
+            throw error
+        }
+    }
+    
+    private func saveUserChanges(
+        username: String? = nil,
+        bio: String? = nil,
+        email: String? = nil,
+        allergies: [String]? = nil,
+        preferences: [String]? = nil
+    ) async {
+        let network = NetworkService()
+        
+        do {
+            let requestBody = UpdateProfileRequest(
+                name: username,
+                bio: bio,
+                email: email,
+                allergies: allergies,
+                preferences: preferences
+            )
+            
+            let _: EmptyResponse? = try await network.requestEndpoint(
+                endpoint: "/user/update",
+                method: "POST",
+                body: requestBody
+            )
+            
+            // If successful, update local user data
+            await MainActor.run {
+                if let currentUser = user {
+                    let updatedUser = UserInfo(
+                        uuid: currentUser.uuid,
+                        name: username ?? currentUser.name,
+                        bio: bio ?? currentUser.bio,
+                        email: email ?? currentUser.email,
+                        lastLogin: currentUser.lastLogin,
+                        dateJoined: currentUser.dateJoined,
+                        storeId: currentUser.storeId,
+                        isSubscribed: currentUser.isSubscribed,
+                        preferences: preferences ?? currentUser.preferences,
+                        allergies: allergies ?? currentUser.allergies,
+                        followers: currentUser.followers,
+                        following: currentUser.following
+                    )
+                    
+                    self.user = updatedUser
+                    saveUserToDefaults(user: updatedUser)
+                }
+            }
+            
+            print("Profile updated successfully")
+            
+        } catch {
+            await MainActor.run {
+                print("Failed to update profile:", error)
+            }
+        }
+    }
+    
+    private func deleteAccount() async {
+        let network = NetworkService()
+        
+        do {
+            // Make API call to delete account
+            let _: EmptyResponse? = try await network.requestEndpoint(
+                endpoint: "/auth/delete-account",
+                method: "GET",
+                body: nil  // No body needed for GET request
+            )
+            
+            // If successful, clear all local data
+            await MainActor.run {
+                clearUserData()
+                // Navigate back to login/welcome screen
+                // You might want to dismiss all sheets and reset navigation
+            }
+            
+            print("Account deleted successfully")
+            
+        } catch {
+            await MainActor.run {
+                print("Failed to delete account:", error)
+                // Show error alert to user
+                // self.showErrorAlert = true
+                // self.errorMessage = "Failed to delete account. Please try again."
+            }
+        }
+    }
+    
+    private func logout() async {
+        let network = NetworkService()
+        
+        do {
+            // Call the logout endpoint
+            let _: EmptyResponse? = try await network.requestEndpoint(
+                endpoint: "/auth/logout",
+                method: "GET",
+                body: nil
+            )
+            
+            // Clear local data regardless of API response
+            await MainActor.run {
+                clearUserData()
+                // You might want to navigate back to login screen here
+                // This depends on your app's navigation structure
+            }
+            
+            print("Logged out successfully")
+            
+        } catch {
+            // Even if the API call fails, clear local data
+            await MainActor.run {
+                clearUserData()
+                print("Logout API failed, but cleared local data: \(error)")
+            }
+        }
+    }
+    
+    private func clearUserData() {
+        // Remove user from UserDefaults
+        UserDefaults.standard.removeObject(forKey: "user")
+        
+        // Clear any other stored user data
+        UserDefaults.standard.removeObject(forKey: "userPreferences")
+        UserDefaults.standard.removeObject(forKey: "savedRecipes")
+        // Add any other keys you store
+        
+        // Clear from Keychain
+        do {
+            try KeychainManager.instance.deleteToken(forKey: "authToken")
+            try KeychainManager.instance.deleteToken(forKey: "refreshToken")
+        } catch {
+            print("error")
+        }
+        
+        // Reset local state
+        self.user = nil
+        self.savedRecipes = []
+        // Reset any other @State variables
+    }
+    
+    private func changePassword(oldPassword: String, newPassword: String) async throws {
+        let network = NetworkService()
+        
+        do {
+            let requestBody = [
+                "old_password": oldPassword,
+                "new_password": newPassword
+            ]
+            
+            let _: EmptyResponse? = try await network.requestEndpoint(
+                endpoint: "/auth/change-password",
+                method: "POST",
+                body: requestBody
+            )
+            
+            print("Password changed successfully")
+            
+        } catch {
+            print("Failed to change password:", error)
+            throw error
+        }
+    }
+    
+    private func validatePasswords(current: String, new: String, confirm: String) -> (isValid: Bool, error: String?) {
+        // Check if any field is empty
+        if current.isEmpty {
+            return (false, "Current password is required")
+        }
+        
+        if new.isEmpty {
+            return (false, "New password is required")
+        }
+        
+        if confirm.isEmpty {
+            return (false, "Please confirm your new password")
+        }
+        
+        if new != confirm {
+            return (false, "New passwords don't match")
+        }
+        
+        if current == new {
+            return (false, "New password must be different from current password")
+        }
+        
+        if new.count < 8 {
+            return (false, "New password must be at least 8 characters long")
+        }
+        
+        return (true, nil)
     }
 }
-
+    
 #Preview {
     profileView()
 }

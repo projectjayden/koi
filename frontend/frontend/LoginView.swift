@@ -8,149 +8,6 @@
 import Foundation
 import SwiftUI
 
-// MARK: - Auth Models
-struct LoginRequest: Codable {
-    let email: String
-    let password: String
-}
-
-struct SignUpRequest: Codable {
-    let email: String
-    let password: String
-}
-
-enum AuthError: Error, LocalizedError {
-    case invalidURL
-    case noData
-    case invalidCredentials
-    case emailAlreadyExists
-    case passwordTooWeak
-    case serverError
-    case networkError(Error)
-    case decodingError
-    
-    var errorDescription: String? {
-        switch self {
-        case .invalidURL:
-            return "Invalid server URL"
-        case .noData:
-            return "No data received from server"
-        case .invalidCredentials:
-            return "Invalid email or password"
-        case .emailAlreadyExists:
-            return "An account with this email already exists"
-        case .passwordTooWeak:
-            return "Password is too weak. Please choose a stronger password"
-        case .serverError:
-            return "Server error occurred"
-        case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
-        case .decodingError:
-            return "Failed to process server response"
-        }
-    }
-}
-
-struct LoginResponse: Decodable {
-    let token: String
-}
-
-// MARK: - Network Manager
-@MainActor
-class NetworkManager: ObservableObject {
-    static let shared = NetworkManager()
-    
-    // Replace with your actual server URL
-    private let baseURL = Bundle.main.infoDictionary?["BASE_URL"] as! String
-    private let session: URLSession
-    
-    private init() {
-        let config = URLSessionConfiguration.default
-        config.httpCookieStorage = HTTPCookieStorage.shared
-        config.httpShouldSetCookies = true
-        config.timeoutIntervalForRequest = 30.0
-        self.session = URLSession(configuration: config)
-    }
-    
-    // MARK: - Login Function
-    func login(email: String, password: String) async throws {
-        let network = NetworkService()
-
-        Task {
-            do {
-                // TODO: take email and password values from inputs
-                let response: LoginResponse? = try await network.requestEndpoint(
-                    endpoint: "/auth/login",
-                    method: "POST",
-                    body: ["email": "bob@builder.com", "password": "400kstudentdebt"]
-                )
-                let saved = saveToKeychain(key: "authToken", value: response?.token ?? "")
-                
-                print("Saved:", getFromKeychain(key: "authToken"))
-            } catch {
-                print("Request failed:", error)
-            }
-        }
-        
-    }
-    
-    // MARK: - Sign Up Function
-    func signUp(email: String, password: String) async throws {
-        guard let url = URL(string: "\(baseURL)/auth/signup") else {
-            throw AuthError.invalidURL
-        }
-        
-        let signUpRequest = SignUpRequest(email: email, password: password)
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        do {
-            request.httpBody = try JSONEncoder().encode(signUpRequest)
-        } catch {
-            throw AuthError.networkError(error)
-        }
-        
-        do {
-            let (_, response) = try await session.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw AuthError.serverError
-            }
-            
-            switch httpResponse.statusCode {
-            case 200, 201:
-                return
-            case 400:
-                throw AuthError.passwordTooWeak
-            case 401:
-                throw AuthError.emailAlreadyExists
-            default:
-                throw AuthError.serverError
-            }
-            
-        } catch {
-            if error is AuthError {
-                throw error
-            } else {
-                throw AuthError.networkError(error)
-            }
-        }
-    }
-    
-    // MARK: - Check Authentication Status
-    func checkAuthStatus() -> Bool {
-        guard let cookies = HTTPCookieStorage.shared.cookies else {
-            return false
-        }
-        
-        return cookies.contains { cookie in
-            cookie.name == "auth_token" && !cookie.value.isEmpty
-        }
-    }
-}
-
 // MARK: - Auth Container View (Main Entry Point for Auth)
 struct AuthContainerView: View {
     @State private var showSignUp = false
@@ -180,7 +37,8 @@ struct LoginView: View {
     @State private var rememberMe = false
     @AppStorage("isAuthenticated") private var isAuthenticated = false
     
-    @StateObject private var networkManager = NetworkManager.shared
+    @StateObject private var authManager = AuthenticationManager()
+    private let networkService = NetworkService()
     
     // Default initializer for when called without binding
     init(showSignUp: Binding<Bool> = .constant(false)) {
@@ -462,8 +320,12 @@ struct LoginView: View {
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
-            if networkManager.checkAuthStatus() {
-                isAuthenticated = true
+            // Check for existing authentication on view appear
+            do {
+                let _ = try authManager.checkForJWTLocally()
+            } catch {
+                // Token not found or invalid, user needs to login
+                print("No valid token found, user needs to login")
             }
         }
     }
@@ -479,14 +341,46 @@ struct LoginView: View {
         isLoading = true
         
         do {
-            try await networkManager.login(email: email, password: password)
+            let loginResponse: LoginResponse? = try await networkService.requestEndpoint(
+                endpoint: "/auth/login",
+                method: "POST",
+                body: ["email": email, "password": password]
+            )
+
+            guard let response = loginResponse else {
+                errorMessage = "No response received from server"
+                isLoading = false
+                return
+            }
+
+            // Save token to keychain
+            try KeychainManager.instance.saveToken(response.token, forKey: "authToken")
+            print("Token saved successfully")
+
+            // Save user data to UserDefaults
+            saveUserToDefaults(user: response.user)
+
+            // Update authentication state
             isAuthenticated = true
+            authManager.isAuthenticated = true
+            authManager.shouldShowLogin = false
+            
+            // Clear form
             email = ""
             password = ""
-        } catch let authError as AuthError {
-            errorMessage = authError.localizedDescription
+            
+        } catch let requestError as RequestError {
+            switch requestError {
+            case .invalidURL:
+                errorMessage = "Invalid server URL"
+            case .requestFailed(let message):
+                errorMessage = message
+            case .emptyResponse:
+                errorMessage = "Empty response from server"
+            }
         } catch {
-            errorMessage = "An unexpected error occurred"
+            errorMessage = "Login failed. Please try again."
+            print("Login error:", error)
         }
         
         isLoading = false

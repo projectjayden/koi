@@ -3,6 +3,8 @@ extern crate rocket;
 
 use rocket_db_pools::Database;
 use rocket::http::Status;
+use dashmap::DashMap;
+use std::sync::Arc;
 
 // mod machine_learning;
 mod catchers;
@@ -19,9 +21,13 @@ fn index() -> Status {
 #[launch]
 fn rocket() -> _ {
   dotenvy::dotenv().ok();
+
+  let session_store: utils::t5::SessionStore = Arc::new(DashMap::new());
+
   rocket
     ::build()
     .attach(utils::db::Db::init())
+    .manage(session_store)
     .mount("/", routes![index, routes::AASA])
     .mount("/auth", routes![routes::auth::Init, routes::auth::Signup, routes::auth::Login, routes::auth::ChangePassword, routes::auth::DeleteAccount])
     .mount(
@@ -42,6 +48,7 @@ fn rocket() -> _ {
     )
     .mount("/user/recipe", routes![routes::user::recipe::LikeRecipe, routes::user::recipe::UnlikeRecipe, routes::user::recipe::Create, routes::user::recipe::Delete, routes::user::recipe::Edit])
     .mount("/user/list", routes![routes::user::list::Create, routes::user::list::Delete, routes::user::list::Edit])
+    .mount("/user/chat", routes![routes::user::chat::Start, routes::user::chat::End, routes::user::chat::History, routes::user::chat::Message])
     .mount("/store", routes![routes::store::Create, routes::store::Lookup, routes::store::GetDeals, routes::store::GetItems, routes::store::GetReviews, routes::store::UpdateInfo])
     .mount("/store/item", routes![routes::store::item::Create, routes::store::item::Delete, routes::store::item::Edit])
     .mount("/store/deal", routes![routes::store::deal::Create, routes::store::deal::Delete, routes::store::deal::Edit])

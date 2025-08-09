@@ -19,6 +19,7 @@ cargo install --locked watchexec-cli
 ```sh
 ED25519_PRIVATE_KEY=
 ED25519_PUBLIC_KEY=
+ML_SERVICE_URL= # dont include a / at the end
 ```
 
 5. Put the `db.sqlite` in `/backend`

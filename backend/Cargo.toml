@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 rocket_db_pools = { version = "0.2.0", features = ["sqlx_sqlite"] }
+reqwest = { version = "0.11", features = ["json"] }
 rocket = { version = "0.5.1", features = ["json"] }
 uuid = { version = "1", features = ["v4"] }
 jwt-simple = "0.12"
@@ -14,5 +15,6 @@ bcrypt = "0.17.0"
 anyhow = "1.0.98"
 ndarray = "0.15"
 zxcvbn = "3.1.0"
+dashmap = "5.5"
 base64 = "0.21"
 ort = "1.16.3"

@@ -14,6 +14,8 @@ struct SignUpView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var confirmPassword = ""
+    @State private var name = ""
+    @State private var bio = ""
     @State private var errorMessage = ""
     @State private var isLoading = false
     @State private var showPassword = false
@@ -21,14 +23,15 @@ struct SignUpView: View {
     @State private var agreeToTerms = false
     @AppStorage("isAuthenticated") private var isAuthenticated = false
     
-    @StateObject private var networkManager = NetworkManager.shared
+    @StateObject private var authManager = AuthenticationManager()
+    private let networkService = NetworkService()
     
     private var passwordsMatch: Bool {
         password == confirmPassword && !confirmPassword.isEmpty
     }
     
     private var isFormValid: Bool {
-        !email.isEmpty && !password.isEmpty && passwordsMatch && agreeToTerms
+        !email.isEmpty && !password.isEmpty && !name.isEmpty && passwordsMatch && agreeToTerms
     }
     
     var body: some View {
@@ -97,6 +100,31 @@ struct SignUpView: View {
                         // Sign up form card
                         VStack(spacing: 0) {
                             VStack(spacing: 20) {
+                                // Name field
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Full Name")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.gray)
+                                    
+                                    HStack {
+                                        Image(systemName: "person")
+                                            .foregroundColor(.gray)
+                                            .frame(width: 20)
+                                        
+                                        TextField("Enter your full name", text: $name)
+                                            .autocapitalization(.words)
+                                            .autocorrectionDisabled()
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(name.isEmpty ? Color.clear : Color.blue.opacity(0.3), lineWidth: 1)
+                                    )
+                                }
+                                
                                 // Email field
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text("Email")
@@ -217,6 +245,30 @@ struct SignUpView: View {
                                     }
                                 }
                                 
+                                // Bio field (optional)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Bio (Optional)")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.gray)
+                                    
+                                    HStack {
+                                        Image(systemName: "text.alignleft")
+                                            .foregroundColor(.gray)
+                                            .frame(width: 20)
+                                        
+                                        TextField("Tell us about yourself", text: $bio)
+                                            .autocapitalization(.sentences)
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(bio.isEmpty ? Color.clear : Color.blue.opacity(0.3), lineWidth: 1)
+                                    )
+                                }
+                                
                                 // Terms and conditions
                                 HStack(spacing: 8) {
                                     Button(action: {
@@ -333,16 +385,60 @@ struct SignUpView: View {
         isLoading = true
         
         do {
-            try await networkManager.signUp(email: email, password: password)
-            // Account created successfully and user is automatically logged in
+            let requestBody: [String: String] = [
+                "email": email,
+                "password": password,
+                "name": name,
+                "bio": bio
+            ]
+            
+            let signUpResponse: SignUpResponse? = try await networkService.requestEndpoint(
+                endpoint: "/auth/signup",
+                method: "POST",
+                body: requestBody
+            )
+            
+            guard let response = signUpResponse else {
+                errorMessage = "No response received from server"
+                isLoading = false
+                return
+            }
+            
+            // Save token to keychain
+            try KeychainManager.instance.saveToken(response.token, forKey: "authToken")
+            print("Token saved successfully")
+            
+            // Update authentication state
             isAuthenticated = true
+            authManager.isAuthenticated = true
+            authManager.shouldShowLogin = false
+            
+            // Clear form
             email = ""
             password = ""
             confirmPassword = ""
-        } catch let authError as AuthError {
-            errorMessage = authError.localizedDescription
+            name = ""
+            bio = ""
+            
+        } catch let requestError as RequestError {
+            switch requestError {
+            case .invalidURL:
+                errorMessage = "Invalid server URL"
+            case .requestFailed(let message):
+                // Handle specific error codes from your API
+                if message.contains("400") {
+                    errorMessage = "Password is too weak. Please choose a stronger password."
+                } else if message.contains("401") {
+                    errorMessage = "An account with this email already exists."
+                } else {
+                    errorMessage = message
+                }
+            case .emptyResponse:
+                errorMessage = "Empty response from server"
+            }
         } catch {
-            errorMessage = "An unexpected error occurred"
+            errorMessage = "Sign up failed. Please try again."
+            print("Sign up error:", error)
         }
         
         isLoading = false

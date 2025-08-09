@@ -84,54 +84,60 @@ class NetworkService {
     }
 }
 
-func saveToKeychain(key: String, value: String) -> Bool {
-    guard let data = value.data(using: .utf8) else {
-        return false
+class AuthenticationManager: ObservableObject {
+    @Published var isAuthenticated = false
+    @Published var shouldShowLogin = false
+    
+    func checkForJWTLocally() throws -> Bool {
+        guard let savedToken = KeychainManager.instance.getToken(forKey: "authToken"),
+              !savedToken.isEmpty else {
+            DispatchQueue.main.async {
+                self.isAuthenticated = false
+                self.shouldShowLogin = true
+            }
+            throw AuthError.noData
+        }
+        
+        DispatchQueue.main.async {
+            self.isAuthenticated = true
+            self.shouldShowLogin = false
+        }
+        return true
     }
-
-    // Delete existing item if it exists
-    let query: [String: Any] = [
-        kSecClass as String       : kSecClassGenericPassword,
-        kSecAttrAccount as String : key
-    ]
-    SecItemDelete(query as CFDictionary)
-
-    // Add new item
-    let addQuery: [String: Any] = [
-        kSecClass as String       : kSecClassGenericPassword,
-        kSecAttrAccount as String : key,
-        kSecValueData as String   : data
-    ]
-
-    let status = SecItemAdd(addQuery as CFDictionary, nil)
-    return status == errSecSuccess
 }
 
-func getFromKeychain(key: String) -> String? {
-    let query: [String: Any] = [
-        kSecClass as String       : kSecClassGenericPassword,
-        kSecAttrAccount as String : key,
-        kSecReturnData as String  : true,
-        kSecMatchLimit as String  : kSecMatchLimitOne
-    ]
+// USERDEFAULTS FUNCTIONS //
 
-    var item: AnyObject?
-    let status = SecItemCopyMatching(query as CFDictionary, &item)
+func saveUserToDefaults(user: UserInfo) {
+    do {
+        let encoder = JSONEncoder()
+        let userData = try encoder.encode(user)
+        UserDefaults.standard.set(userData, forKey: "currentUser")
+        UserDefaults.standard.synchronize() // Force immediate save
+        print("User data saved to UserDefaults")
+    } catch {
+        print("Failed to encode user data:", error)
+    }
+}
 
-    guard status == errSecSuccess,
-          let data = item as? Data,
-          let value = String(data: data, encoding: .utf8) else {
+func getUserFromDefaults() -> UserInfo? {
+    guard let userData = UserDefaults.standard.data(forKey: "currentUser") else {
+        print("No user data found in UserDefaults")
         return nil
     }
-
-    return value
+    
+    do {
+        let decoder = JSONDecoder()
+        let user = try decoder.decode(UserInfo.self, from: userData)
+        return user
+    } catch {
+        print("Failed to decode user data:", error)
+        return nil
+    }
 }
 
-func deleteFromKeychain(key: String) -> Bool {
-    let query: [String: Any] = [
-        kSecClass as String       : kSecClassGenericPassword,
-        kSecAttrAccount as String : key
-    ]
-    let status = SecItemDelete(query as CFDictionary)
-    return status == errSecSuccess
+func clearUserFromDefaults() {
+    UserDefaults.standard.removeObject(forKey: "currentUser")
+    UserDefaults.standard.synchronize()
+    print("User data cleared from UserDefaults")
 }
