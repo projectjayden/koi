@@ -164,18 +164,52 @@ struct UserFameInfo: Codable {
     }
 }
 
-public struct UserProfileResponse: Codable {
+public struct UserProfileResponse {
     let user: UserInfo?
-    let reviews: [UserReview]?
-    let recipes: [Recipes]?
+    let reviews: [UserReview]
+    let recipes: [Recipes]
     
-    enum CodingKeys: String, CodingKey {
-        case user
-        case reviews
-        case recipes
+    init(user: UserInfo?, reviews: [UserReview]?, recipes: [Recipes]?) {
+        self.user = user
+        self.reviews = reviews ?? []
+        self.recipes = recipes ?? []
     }
 }
 
+struct Cart: Codable {
+    var ingredients: [String]
+    
+    static let empty = Cart(ingredients: [])
+}
+
+public struct RecipesResponse: Codable {
+    let totalRecipes: Int
+    let recipes: [Recipes]
+    
+    public init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        totalRecipes = try container.decode(Int.self)
+        recipes = try container.decode([Recipes].self)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+        try container.encode(totalRecipes)
+        try container.encode(recipes)
+    }
+}
+
+struct RecipeResponse: Codable {
+    let total: Int
+    let recipe: [Meal]
+    
+    public init (from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        total = try container.decode(Int.self)
+        recipe = try container.decode([Meal].self)
+    }
+}
+        
 public struct UserInfo: Codable {
     let uuid: String
     let name: String
@@ -294,23 +328,6 @@ public struct ReviewsResponse: Codable {
     }
 }
 
-public struct RecipesResponse: Codable {
-    let totalRecipes: Int
-    let recipes: [Recipes]
-    
-    public init(from decoder: Decoder) throws {
-        var container = try decoder.unkeyedContainer()
-        totalRecipes = try container.decode(Int.self)
-        recipes = try container.decode([Recipes].self)
-    }
-    
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.unkeyedContainer()
-        try container.encode(totalRecipes)
-        try container.encode(recipes)
-    }
-}
-
 public struct FameResponse: Codable {
     let total: Int
     let users: [UserFameInfo]
@@ -326,6 +343,20 @@ public struct FameResponse: Codable {
         var container = encoder.unkeyedContainer()
         try container.encode(total)
         try container.encode(users)
+    }
+}
+
+struct CreateRecipeRequest: Codable {
+    let name: String
+    let ingredients: [IngredientRequest]
+    let instructions: String?
+    let category: String?
+    let image: String?
+    
+    struct IngredientRequest: Codable {
+        let name: String
+        let amount: Double
+        let unit: String
     }
 }
 
@@ -464,4 +495,5 @@ struct ChatMessageResponse: Codable {
     let response: String
     let session_id: String
 }
+
 

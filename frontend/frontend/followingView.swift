@@ -163,17 +163,19 @@ struct followingView: View {
             )
             
             guard let response = response else {
-                throw AuthError.noData
+                // Return empty instead of throwing for no data
+                return (total: 0, followers: [])
             }
             
             return (total: response.total, followers: response.users)
             
         } catch {
-            print("Failed to get followers:", error)
-            throw error
+            print("Failed to get followers (user might have none): \(error)")
+            // Return empty result instead of throwing for any error
+            return (total: 0, followers: [])
         }
     }
-    
+
     func getFollowing(limit: Int = 20, offset: Int = 0) async throws -> (total: Int, following: [UserFameInfo]) {
         let network = NetworkService()
         
@@ -189,17 +191,18 @@ struct followingView: View {
             )
             
             guard let response = response else {
-                throw AuthError.noData
+                // Return empty instead of throwing for no data
+                return (total: 0, following: [])
             }
             
             return (total: response.total, following: response.users)
             
         } catch {
-            print("Failed to get following:", error)
-            throw error
+            print("Failed to get following (user might not be following anyone): \(error)")
+            // Return empty result instead of throwing for any error
+            return (total: 0, following: [])
         }
-    }
-}
+    }}
 
 struct UserRowView: View {
     let user: UserFameInfo

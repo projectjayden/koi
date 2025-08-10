@@ -8,6 +8,10 @@
 
 /* Begin PBXBuildFile section */
 		3406747E2E15F8050077F381 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3406747D2E15F8050077F381 /* LoginView.swift */; };
+		3416C4C02E47FA51009D49CC /* ProfileEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3416C4BC2E47FA51009D49CC /* ProfileEditView.swift */; };
+		3416C4C12E47FA51009D49CC /* ProfileSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3416C4BD2E47FA51009D49CC /* ProfileSettingsView.swift */; };
+		3416C4C22E47FA51009D49CC /* ProfileTosView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3416C4BE2E47FA51009D49CC /* ProfileTosView.swift */; };
+		3416C4C32E47FA51009D49CC /* profileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3416C4BF2E47FA51009D49CC /* profileView.swift */; };
 		34635F762DFE8E7B006B3058 /* frontendApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34635F752DFE8E7B006B3058 /* frontendApp.swift */; };
 		34635F782DFE8E7B006B3058 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34635F772DFE8E7B006B3058 /* ContentView.swift */; };
 		34635F7A2DFE8E7B006B3058 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34635F792DFE8E7B006B3058 /* Item.swift */; };
@@ -25,7 +29,6 @@
 		34F26B2A2E342D5F00E28034 /* apiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B282E342D5F00E28034 /* apiClient.swift */; };
 		34F26B2B2E342D5F00E28034 /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B292E342D5F00E28034 /* KeychainManager.swift */; };
 		34F26B2D2E342DA600E28034 /* mapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B2C2E342DA600E28034 /* mapView.swift */; };
-		34F26B312E39B9B700E28034 /* profileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F26B302E39B9B700E28034 /* profileView.swift */; };
 		F139B1A32E3DBBDE00E4170C /* functions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F139B1A22E3DBBD500E4170C /* functions.swift */; };
 		F67752DF2E3D6DFD00D0C2E5 /* shopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F67752DE2E3D6DF800D0C2E5 /* shopView.swift */; };
 		F67C47B62E37EB6100B08DFA /* homePageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F67C47B52E37EB6100B08DFA /* homePageView.swift */; };
@@ -50,6 +53,10 @@
 
 /* Begin PBXFileReference section */
 		3406747D2E15F8050077F381 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		3416C4BC2E47FA51009D49CC /* ProfileEditView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ProfileEditView.swift; sourceTree = "<group>"; };
+		3416C4BD2E47FA51009D49CC /* ProfileSettingsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ProfileSettingsView.swift; sourceTree = "<group>"; };
+		3416C4BE2E47FA51009D49CC /* ProfileTosView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ProfileTosView.swift; sourceTree = "<group>"; };
+		3416C4BF2E47FA51009D49CC /* profileView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = profileView.swift; sourceTree = "<group>"; };
 		34635F722DFE8E7B006B3058 /* frontend.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = frontend.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		34635F752DFE8E7B006B3058 /* frontendApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = frontendApp.swift; sourceTree = "<group>"; };
 		34635F772DFE8E7B006B3058 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -70,7 +77,6 @@
 		34F26B282E342D5F00E28034 /* apiClient.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = apiClient.swift; sourceTree = "<group>"; };
 		34F26B292E342D5F00E28034 /* KeychainManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = KeychainManager.swift; sourceTree = "<group>"; };
 		34F26B2C2E342DA600E28034 /* mapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = mapView.swift; sourceTree = "<group>"; };
-		34F26B302E39B9B700E28034 /* profileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = profileView.swift; sourceTree = "<group>"; };
 		F139B1A22E3DBBD500E4170C /* functions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = functions.swift; sourceTree = "<group>"; };
 		F160D1B42E32BE9A002241BB /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		F160D1B52E32BF6A002241BB /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
@@ -146,7 +152,10 @@
 				34F1E5C42E3E917D00E758E9 /* t5Model.swift */,
 				34F1E5C22E3DE53300E758E9 /* followingView.swift */,
 				34F26B262E3181FB00E28034 /* SignUpView.swift */,
-				34F26B302E39B9B700E28034 /* profileView.swift */,
+				3416C4BC2E47FA51009D49CC /* ProfileEditView.swift */,
+				3416C4BD2E47FA51009D49CC /* ProfileSettingsView.swift */,
+				3416C4BE2E47FA51009D49CC /* ProfileTosView.swift */,
+				3416C4BF2E47FA51009D49CC /* profileView.swift */,
 				34F1E5BE2E3C81E400E758E9 /* structs.swift */,
 				347DBEC32E3B30950089EC26 /* KoiBackgroundView.swift */,
 			);
@@ -314,17 +323,20 @@
 				34F26B2D2E342DA600E28034 /* mapView.swift in Sources */,
 				34F26B272E3181FB00E28034 /* SignUpView.swift in Sources */,
 				34F26B2B2E342D5F00E28034 /* KeychainManager.swift in Sources */,
+				3416C4C32E47FA51009D49CC /* profileView.swift in Sources */,
 				F67C47B62E37EB6100B08DFA /* homePageView.swift in Sources */,
 				34635F7A2DFE8E7B006B3058 /* Item.swift in Sources */,
 				34F26B2A2E342D5F00E28034 /* apiClient.swift in Sources */,
 				34F1E5C32E3DE53300E758E9 /* followingView.swift in Sources */,
+				3416C4C12E47FA51009D49CC /* ProfileSettingsView.swift in Sources */,
 				347DBEC42E3B30950089EC26 /* KoiBackgroundView.swift in Sources */,
+				3416C4C22E47FA51009D49CC /* ProfileTosView.swift in Sources */,
 				34F1E5C72E44732E00E758E9 /* MainView.swift in Sources */,
+				3416C4C02E47FA51009D49CC /* ProfileEditView.swift in Sources */,
 				34F1E5BF2E3C81E400E758E9 /* structs.swift in Sources */,
 				3406747E2E15F8050077F381 /* LoginView.swift in Sources */,
 				F67752DF2E3D6DFD00D0C2E5 /* shopView.swift in Sources */,
 				34635F762DFE8E7B006B3058 /* frontendApp.swift in Sources */,
-				34F26B312E39B9B700E28034 /* profileView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
