@@ -5,8 +5,8 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Serialize)]
-#[serde(crate = "rocket::serde", rename_all = "camelCase")]
-pub struct T5Request {
+#[serde(crate = "rocket::serde")]
+struct T5Request {
   /// The user's input prompt.
   input_text: String,
   /// Max length of the response, in characters.
@@ -30,8 +30,8 @@ impl T5Request {
 }
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde", rename_all = "camelCase")]
-pub struct T5Response {
+#[serde(crate = "rocket::serde")]
+struct T5Response {
   pub generated_text: String,
 }
 

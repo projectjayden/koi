@@ -63,7 +63,7 @@ pub async fn create(mut db: Connection<Db>, user: AuthenticatedUser, data: Limit
   let is_ai_generated: u8 = if data.0.is_ai_generated { 1 } else { 0 };
 
   sqlx
-    ::query("INSERT INTO recipes (uuid, user_uuid, created_at, last_updated, name, ingredients, instructions, category, image, is_ai_generated) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
+    ::query("INSERT INTO recipes (uuid, user_uuid, created_at, last_updated, name, ingredients, instructions, category, image, is_ai_generated) VALUES ($1, $2, $3, $3, $4, $5, $6, $7, $8, $9)")
     .bind(&uuid)
     .bind(user.0.uuid)
     .bind(get_unix_seconds() as u32)
