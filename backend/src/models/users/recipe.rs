@@ -20,6 +20,8 @@ pub enum IngredientUnit {
   Quart,
   Gallon,
   Fahrenheit,
+  /// No unit
+  NA
 }
 
 #[derive(Serialize)]

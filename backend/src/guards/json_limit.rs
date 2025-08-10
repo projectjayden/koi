@@ -28,7 +28,7 @@ impl<'r, T: DeserializeOwned> FromData<'r> for LimitedJson<T> {
 
     match from_reader(Cursor::new(bytes)) {
       Ok(value) => Outcome::Success(LimitedJson(value)),
-      Err(_) => Outcome::Error((Status::BadRequest, "Invalid JSON".into())),
+      Err(_) => Outcome::Error((Status::UnprocessableEntity, "Invalid JSON".into())),
     }
   }
 }

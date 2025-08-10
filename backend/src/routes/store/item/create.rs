@@ -1,8 +1,10 @@
 use crate::guards::{ auth::AuthenticatedUser, store_auth::AuthenticatedStore };
+use rocket_db_pools::{ sqlx::{ self, sqlite::SqliteRow }, Connection };
 use crate::guards::json_limit::LimitedJson;
-use rocket_db_pools::{ sqlx, Connection };
+use crate::utils::functions::get_from_row;
 use rocket::serde::Deserialize;
 use rocket::serde::json::Json;
+use rocket::http::Status;
 use crate::utils::db::Db;
 use uuid::Uuid;
 
@@ -43,7 +45,7 @@ pub struct CreateItemInput {
 /// **Output**:
 /// - `string[]` - UUIDs of the created items, in the same order as input array
 #[post("/create", data = "<data>")]
-pub async fn create(mut db: Connection<Db>, _user: AuthenticatedUser, store: AuthenticatedStore, data: LimitedJson<Vec<CreateItemInput>>) -> Json<Vec<String>> {
+pub async fn create(mut db: Connection<Db>, _user: AuthenticatedUser, store: AuthenticatedStore, data: LimitedJson<Vec<CreateItemInput>>) -> Result<Json<Vec<String>>, Status> {
   let uuids: Vec<String> = data.0
     .iter()
     .map(|_| Uuid::new_v4().to_string())
@@ -51,6 +53,18 @@ pub async fn create(mut db: Connection<Db>, _user: AuthenticatedUser, store: Aut
 
   for (i, uuid) in uuids.iter().enumerate() {
     let item: &&CreateItemInput = &data.0.get(i).unwrap();
+
+    if item.deal_uuid.is_some() {
+      let deal_is_owned: bool = sqlx
+        ::query("SELECT store_uuid FROM deals WHERE uuid = $1")
+        .bind(item.deal_uuid.as_ref().unwrap())
+        .fetch_one(&mut **db).await
+        .and_then(|row: SqliteRow| { Ok(get_from_row::<String>(&row, "store_uuid") == store.0.uuid) })
+        .unwrap();
+      if !deal_is_owned {
+        return Err(Status::Unauthorized);
+      }
+    }
 
     sqlx
       ::query("INSERT INTO items (uuid, name, price, manufacturer, in_stock, store_uuid, deal_uuid, image) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
@@ -66,5 +80,5 @@ pub async fn create(mut db: Connection<Db>, _user: AuthenticatedUser, store: Aut
       .unwrap();
   }
 
-  Json(uuids)
+  Ok(Json(uuids))
 }
