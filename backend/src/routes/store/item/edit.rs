@@ -1,10 +1,11 @@
-use crate::{ guards::{ auth::AuthenticatedUser, store_auth::AuthenticatedStore }, models::stores::Item };
+use crate::guards::{ auth::AuthenticatedUser, json_limit::LimitedJson, store_auth::AuthenticatedStore };
 use rocket_db_pools::{ sqlx::{ self, Row, sqlite::SqliteRow }, Connection };
-use rocket::{ http::Status, serde::{ json::Json, Deserialize } };
+use rocket::{ http::Status, serde::Deserialize };
+use crate::models::stores::Item;
 use crate::utils::db::Db;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct CreateItemInput {
   /// Name of the item.
   name: Option<String>,
@@ -32,7 +33,7 @@ pub struct CreateItemInput {
 /// - 401 (item not owned)
 /// - 404 (item not found)
 #[patch("/edit/<uuid>", data = "<data>")]
-pub async fn edit(mut db: Connection<Db>, _user: AuthenticatedUser, store: AuthenticatedStore, uuid: &str, data: Json<CreateItemInput>) -> Status {
+pub async fn edit(mut db: Connection<Db>, _user: AuthenticatedUser, store: AuthenticatedStore, uuid: &str, data: LimitedJson<CreateItemInput>) -> Status {
   let store_uuid: Option<String> = sqlx
     ::query("SELECT store_uuid FROM items WHERE uuid = $1")
     .bind(&uuid)

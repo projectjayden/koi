@@ -7,10 +7,10 @@ use rocket_db_pools::sqlx;
 use zxcvbn::zxcvbn;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
-pub struct ChangePasswordData<'r> {
-  old_password: &'r str,
-  new_password: &'r str,
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
+pub struct ChangePasswordData {
+  old_password: String,
+  new_password: String,
 }
 
 /// # Change Password
@@ -21,8 +21,8 @@ pub struct ChangePasswordData<'r> {
 /// **Input**:
 /// ```ts
 /// {
-///   old_password: string;
-///   new_password: string;
+///   oldPassword: string;
+///   newPassword: string;
 /// }
 /// ```
 ///
@@ -31,17 +31,17 @@ pub struct ChangePasswordData<'r> {
 /// - 400 (password too weak)
 /// - 401 (old password wrong)
 #[patch("/change-password", data = "<data>")]
-pub async fn change_password(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<ChangePasswordData<'_>>) -> Result<String, Status> {
-  if !verify(data.old_password, &user.0.password).unwrap() {
+pub async fn change_password(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<ChangePasswordData>) -> Result<String, Status> {
+  if !verify(&data.old_password, &user.0.password).unwrap() {
     return Err(Status::Unauthorized);
   }
 
-  let new_password_strength: zxcvbn::Entropy = zxcvbn(data.new_password, &[data.old_password, user.0.email.as_str()]);
+  let new_password_strength: zxcvbn::Entropy = zxcvbn(&data.new_password, &[&data.old_password, user.0.email.as_str()]);
   if new_password_strength.score() < zxcvbn::Score::Three {
     return Err(Status::BadRequest);
   }
 
-  let new_hashed_password: String = hash(data.new_password, DEFAULT_COST).unwrap();
+  let new_hashed_password: String = hash(&data.new_password, DEFAULT_COST).unwrap();
   sqlx::query("UPDATE users SET password = $1 WHERE uuid = $2").bind(new_hashed_password).bind(&user.0.uuid).execute(&mut **db).await.unwrap();
 
   Ok(generate_jwt(&user.0.uuid.clone()).unwrap())

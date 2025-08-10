@@ -6,7 +6,6 @@ use rocket::http::Status;
 use dashmap::DashMap;
 use std::sync::Arc;
 
-// mod machine_learning;
 mod catchers;
 mod guards;
 mod models;
@@ -54,6 +53,6 @@ fn rocket() -> _ {
     .mount("/store/deal", routes![routes::store::deal::Create, routes::store::deal::Delete, routes::store::deal::Edit])
     .register(
       "/",
-      catchers![catchers::bad_request, catchers::unauthorized, catchers::forbidden, catchers::not_found, catchers::im_a_teapot, catchers::unprocessable_entity, catchers::internal_server_error]
+      catchers![catchers::bad_request, catchers::unauthorized, catchers::forbidden, catchers::not_found, catchers::payload_too_large, catchers::im_a_teapot, catchers::unprocessable_entity, catchers::internal_server_error]
     )
 }

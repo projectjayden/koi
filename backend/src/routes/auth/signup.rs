@@ -1,24 +1,19 @@
-use crate::{ models::users::{ SerializedUser, User }, utils::{ db::Db, functions::get_unix_seconds, jwt::generate_jwt } };
-use rocket::{ http::Status, serde::{ Serialize, Deserialize, json::Json } };
+use crate::utils::{ db::Db, functions::get_unix_seconds, jwt::generate_jwt };
+use rocket::{ http::Status, serde::{ Deserialize, json::Json } };
+use rocket_db_pools::sqlx::{ self, sqlite::SqliteRow };
+use crate::models::users::{ SerializedUser, User };
 use bcrypt::{ DEFAULT_COST, hash };
 use rocket_db_pools::Connection;
-use rocket_db_pools::sqlx;
 use zxcvbn::zxcvbn;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
-pub struct SignupData {
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
+pub struct SignupInput {
   email: String,
   password: String,
   name: String,
   bio: Option<String>,
-}
-
-#[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
-pub struct SignupReturn {
-  token: String,
 }
 
 /// # Signup
@@ -42,13 +37,13 @@ pub struct SignupReturn {
 /// - 401 (email already used)
 /// - 500 (error)
 #[post("/signup", data = "<data>")]
-pub async fn signup(mut db: Connection<Db>, data: Json<SignupData>) -> Result<Json<(String, SerializedUser)>, Status> {
+pub async fn signup(mut db: Connection<Db>, data: Json<SignupInput>) -> Result<Json<(String, SerializedUser)>, Status> {
   let password_strength: zxcvbn::Entropy = zxcvbn(&data.0.password, &[&data.0.email]);
   if password_strength.score() < zxcvbn::Score::Three {
     return Err(Status::BadRequest);
   }
 
-  let email_in_db: Option<sqlx::sqlite::SqliteRow> = sqlx::query("SELECT * FROM users WHERE email = $1").bind(&data.0.email).fetch_one(&mut **db).await.ok();
+  let email_in_db: Option<SqliteRow> = sqlx::query("SELECT * FROM users WHERE email = $1").bind(&data.0.email).fetch_one(&mut **db).await.ok();
   if let Some(_) = email_in_db {
     return Err(Status::Unauthorized);
   }
@@ -57,14 +52,13 @@ pub async fn signup(mut db: Connection<Db>, data: Json<SignupData>) -> Result<Js
 
   let uuid: String = Uuid::new_v4().to_string();
   sqlx
-    ::query("INSERT INTO users (uuid, password, name, bio, last_login, email, date_joined) VALUES ($1, $2, $3, $4, $5)")
+    ::query("INSERT INTO users (uuid, password, name, bio, last_login, email, date_joined) VALUES ($1, $2, $3, $4, $5, $6, $5)")
     .bind(&uuid)
     .bind(hashed_password)
     .bind(data.0.name)
     .bind(data.0.bio)
     .bind(get_unix_seconds() as u32)
     .bind(data.0.email)
-    .bind(get_unix_seconds() as u32)
     .execute(&mut **db).await
     .unwrap();
 

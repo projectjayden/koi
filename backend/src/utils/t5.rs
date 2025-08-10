@@ -5,7 +5,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct T5Request {
   /// The user's input prompt.
   input_text: String,
@@ -30,13 +30,13 @@ impl T5Request {
 }
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct T5Response {
   pub generated_text: String,
 }
 
 #[derive(Clone, Serialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct ChatExchange {
   /// The user's message.
   pub user_message: String,

@@ -13,8 +13,8 @@ use uuid::Uuid;
 /// **Output**:
 /// ```ts
 /// {
-///   user_message: string;
-///   assistant_response: string;
+///   userMessage: string;
+///   assistantResponse: string;
 ///   timestamp: number;
 /// }[]; // array of chat exchanges
 /// ```

@@ -1,9 +1,9 @@
-use crate::{ models::stores::{ Deal, SerializedDeal }, utils::functions::get_from_row };
+use crate::{ models::stores::Deal, utils::functions::get_from_row };
 use rocket_db_pools::sqlx::{ self, SqliteConnection };
 use rocket::serde::Serialize;
 
 #[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct SerializedItem {
   /// UUID of the item.
   pub uuid: String,
@@ -20,16 +20,12 @@ pub struct SerializedItem {
   /// Data about the item's deal.
   ///
   /// Each item can only be a part of one deal.
-  pub deal: Option<SerializedDeal>,
+  pub deal: Option<Deal>,
   /// JSON blob of the item's image.
   pub image: Option<String>,
 }
 
-#[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
 pub struct Item {
-  /// Internal item ID, incremented by 1 for each item created.
-  id: u32,
   /// UUID of the item.
   pub uuid: String,
   /// Name of the item.
@@ -51,9 +47,8 @@ pub struct Item {
 }
 
 impl Item {
-  pub fn new(id: u32, uuid: String, name: String, price: f32, manufacturer: Option<String>, in_stock: bool, store_uuid: String, deal_uuid: Option<String>, image: Option<String>) -> Self {
+  pub fn new(uuid: String, name: String, price: f32, manufacturer: Option<String>, in_stock: bool, store_uuid: String, deal_uuid: Option<String>, image: Option<String>) -> Self {
     Self {
-      id,
       uuid,
       name,
       price,
@@ -74,7 +69,7 @@ impl Item {
       in_stock: self.in_stock,
       store_uuid: self.store_uuid.clone(),
       deal: if self.deal_uuid.is_some() {
-        Some(Deal::from_uuid(&mut *db, self.deal_uuid.as_ref().unwrap().to_string()).await.unwrap().serialize())
+        Some(Deal::from_uuid(&mut *db, self.deal_uuid.as_ref().unwrap().to_string()).await.unwrap())
       } else {
         None
       },
@@ -90,7 +85,6 @@ impl Item {
       .and_then(|row: sqlx::sqlite::SqliteRow| {
         Ok(
           Self::new(
-            get_from_row(&row, "id"),
             get_from_row(&row, "uuid"),
             get_from_row(&row, "name"),
             get_from_row(&row, "price"),

@@ -1,4 +1,4 @@
-use crate::{ guards::{ auth::AuthenticatedUser, store_auth::AuthenticatedStore }, models::stores::SerializedDeal };
+use crate::{ guards::{ auth::AuthenticatedUser, store_auth::AuthenticatedStore }, models::stores::Deal };
 use rocket_db_pools::Connection;
 use rocket::serde::json::Json;
 use crate::utils::db::Db;
@@ -14,23 +14,17 @@ use crate::utils::db::Db;
 /// ```ts
 /// {
 ///   uuid: string;
-///   store_uuid: string;
+///   storeUuid: string;
 ///   name: string;
 ///   description: string | null;
-///   start_date: number;
-///   end_date: number;
+///   startDate: number;
+///   endDate: number;
 ///   type: number;
-///   value_1: number;
-///   value_2: number | null;
+///   value1: number;
+///   value2: number | null;
 /// }[];
 /// ```
-#[get("/get-deals", format = "json")]
-pub async fn get_deals(mut db: Connection<Db>, _user: AuthenticatedUser, store: AuthenticatedStore) -> Json<Vec<SerializedDeal>> {
-  Json(
-    store.0
-      .get_deals(&mut **db).await
-      .into_iter()
-      .map(|deal| deal.serialize())
-      .collect()
-  )
+#[get("/get-deals")]
+pub async fn get_deals(mut db: Connection<Db>, _user: AuthenticatedUser, store: AuthenticatedStore) -> Json<Vec<Deal>> {
+  Json(store.0.get_deals(&mut **db).await)
 }

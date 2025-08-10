@@ -1,22 +1,16 @@
-use rocket::{ http::Status, serde::{ Serialize, Deserialize, json::Json } };
-use crate::{ models::{ stores::Store, users::{ SerializedUser, User } }, routes::auth::init::InitOutput, utils::{ db::Db, functions::get_unix_seconds, jwt::generate_jwt } };
+use crate::utils::{ db::Db, functions::get_unix_seconds, jwt::generate_jwt };
+use crate::models::{ stores::Store, users::{ SerializedUser, User } };
+use rocket::{ http::Status, serde::{ Deserialize, json::Json } };
 use rocket_db_pools::sqlx::{ self, Row };
 use rocket_db_pools::Connection;
+use super::init::InitOutput;
 use bcrypt::verify;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
-pub struct LoginData<'r> {
-  email: &'r str,
-  password: &'r str,
-}
-
-#[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
-pub struct LoginReturnData {
-  /// JWT Token. Should be sent in the Authorization header in every request.
-  token: String,
-  user: User,
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
+pub struct LoginData {
+  email: String,
+  password: String,
 }
 
 /// # Login
@@ -34,10 +28,10 @@ pub struct LoginReturnData {
 ///
 /// **Output**: Same as /auth/init
 #[post("/login", data = "<data>")]
-pub async fn login(mut db: Connection<Db>, data: Json<LoginData<'_>>) -> Result<Json<(String, InitOutput)>, Status> {
+pub async fn login(mut db: Connection<Db>, data: Json<LoginData>) -> Result<Json<(String, InitOutput)>, Status> {
   let user_data: Option<(String, String, Option<String>)> = sqlx
     ::query("SELECT uuid, password, store_uuid FROM users WHERE email = $1")
-    .bind(data.email)
+    .bind(&data.email)
     .fetch_one(&mut **db).await
     .and_then(|row: sqlx::sqlite::SqliteRow| {
       let uuid: String = row.try_get::<String, _>("uuid").unwrap();
@@ -49,7 +43,7 @@ pub async fn login(mut db: Connection<Db>, data: Json<LoginData<'_>>) -> Result<
 
   match &user_data {
     Some((_, hashed_password, _)) => {
-      if !verify(data.password, hashed_password.as_str()).unwrap() {
+      if !verify(&data.password, hashed_password.as_str()).unwrap() {
         return Err(Status::Unauthorized);
       }
     }
@@ -73,5 +67,5 @@ pub async fn login(mut db: Connection<Db>, data: Json<LoginData<'_>>) -> Result<
   }
 
   let store: Store = Store::new(&mut db, store_uuid.unwrap()).await.unwrap();
-  Ok(Json((generate_jwt(&uuid).unwrap(), InitOutput::Store((serialized_user, store.serialize())))))
+  Ok(Json((generate_jwt(&uuid).unwrap(), InitOutput::Store((serialized_user, store)))))
 }

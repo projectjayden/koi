@@ -4,7 +4,7 @@ use rocket_db_pools::Connection;
 use crate::utils::db::Db;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct RecipeInput {
   /// UUID of the user to fetch recipes for.
   ///
@@ -12,6 +12,8 @@ pub struct RecipeInput {
   ///
   /// If a UUID is provided, the type of recipes to fetch is ignored and will be set to `0` - authored.
   pub uuid: Option<String>,
+  /// Whether to fetch AI-generated recipes.
+  pub get_ai_generated: bool,
   /// Type of data to fetch.
   ///
   /// - 0 = authored recipes
@@ -38,6 +40,7 @@ pub struct RecipeInput {
 /// ```ts
 /// {
 ///   uuid?: string;
+///   getAiGenerated: boolean;
 ///   type: 0 | 1;
 ///   limit?: number;
 ///   offset?: number;
@@ -50,13 +53,14 @@ pub struct RecipeInput {
 ///   number; // total recipes
 ///   {
 ///     uuid: number;
-///     user_uuid: number;
-///     created_at: number;
-///     last_updated: number;
+///     userUuid: number;
+///     createdAt: number;
+///     lastUpdated: number;
 ///     name: string;
 ///     ingredients: [name: string, amount: number, unit: string][];
 ///     category: string | null;
 ///     image: string | null;
+///     isAiGenerated: boolean;
 ///   }[];
 /// ]
 /// ```
@@ -78,7 +82,7 @@ pub async fn get_recipes(mut db: Connection<Db>, user: AuthenticatedUser, data: 
   };
 
   let (total_recipes, recipes) = if data.0.uuid.is_some() {
-    MiniUser::new(&mut db, data.0.uuid.unwrap()).await.get_recipes(&mut db, limit, offset).await
+    MiniUser::new(&mut db, data.0.uuid.unwrap()).await.get_recipes(&mut db, Some(data.0.get_ai_generated), limit, offset).await
   } else {
     user.0.get_recipes(&mut db, recipe_type, limit, offset).await
   };

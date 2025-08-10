@@ -1,12 +1,13 @@
-use crate::{ guards::auth::AuthenticatedUser, models::{ stores::{ SerializedStore, Store }, users::SerializedUser }, utils::{ db::Db, functions::get_unix_seconds, jwt::generate_jwt } };
-use rocket_db_pools::{ sqlx, Connection };
+use crate::{ guards::auth::AuthenticatedUser, models::{ stores::Store, users::SerializedUser } };
+use crate::utils::{ db::Db, functions::get_unix_seconds, jwt::generate_jwt };
 use rocket::serde::{ json::Json, Serialize };
+use rocket_db_pools::{ sqlx, Connection };
 
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
 pub enum InitOutput {
   User(SerializedUser),
-  Store((SerializedUser, SerializedStore)),
+  Store((SerializedUser, Store)),
 }
 
 /// # Init
@@ -28,10 +29,10 @@ pub enum InitOutput {
 ///       name: string;
 ///       bio: string | null;
 ///       email: string;
-///       last_login: number;
-///       date_joined: number;
-///       store_id: number | null;
-///       is_subscribed: boolean;
+///       lastLogin: number;
+///       dateJoined: number;
+///       storeId: number | null;
+///       isSubscribed: boolean;
 ///       preferences: string[];
 ///       allergies: string[];
 ///       followers: number;
@@ -56,7 +57,7 @@ pub enum InitOutput {
 ///         longitude: number;
 ///         phone: string | null;
 ///         email: string | null;
-///         open_hours: [[string, string], [string, string], ...x5] | null;
+///         openHours: [[string, string], [string, string], ...x5] | null;
 ///       }
 ///     ]
 ///   }
@@ -77,5 +78,5 @@ pub async fn init(mut db: Connection<Db>, user: AuthenticatedUser) -> Json<(Stri
   }
 
   let store: Store = Store::new(&mut db, user.0.store_uuid.unwrap()).await.unwrap();
-  Json((generate_jwt(&user.0.uuid).unwrap(), InitOutput::Store((serialized_user, store.serialize()))))
+  Json((generate_jwt(&user.0.uuid).unwrap(), InitOutput::Store((serialized_user, store))))
 }

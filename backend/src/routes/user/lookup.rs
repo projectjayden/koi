@@ -19,14 +19,14 @@ use crate::utils::db::Db;
 ///     uuid: string;
 ///     name: string;
 ///     bio: string | null;
-///     is_subscribed: boolean;
+///     isSubscribed: boolean;
 ///     followers: number;
 ///     following: number;
 ///   },
 ///   number, // total recipes
 ///   { /* 20 recipes */
 ///     uuid: string;
-///     user_uuid: string;
+///     userUuid: string;
 ///     name: string;
 ///     ingredients: [name: string, amount: number, unit: string][];
 ///     category: string | null;
@@ -44,7 +44,7 @@ pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, uuid: &str
   }
 
   let user: MiniUser = MiniUser::new(&mut db, uuid.to_string()).await;
-  let (total_recipes, recipes) = user.get_recipes(&mut db, 20, 0).await;
+  let (total_recipes, recipes) = user.get_recipes(&mut db, None, 20, 0).await;
 
   let mut serialized_recipes: Vec<SerializedRecipe> = vec![];
   for recipe in recipes {

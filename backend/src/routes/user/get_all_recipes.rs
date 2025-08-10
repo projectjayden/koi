@@ -4,7 +4,7 @@ use rocket_db_pools::{ sqlx::{ self, sqlite::SqliteRow, Row }, Connection };
 use crate::utils::{ db::Db, functions::get_from_row };
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct RecipeInput {
   /// Number of recipes to get.
   ///
@@ -16,7 +16,7 @@ pub struct RecipeInput {
   pub offset: Option<u32>,
 }
 
-/// # Get Created/Liked Recipes
+/// # Get All Recipes
 /// Gets recipes from anyone except the current user.
 ///
 /// **Route**: /user/get-all-recipes
@@ -35,13 +35,14 @@ pub struct RecipeInput {
 /// ```ts
 /// {
 ///   uuid: number;
-///   user_uuid: number;
-///   created_at: number;
-///   last_updated: number;
+///   userUuid: number;
+///   createdAt: number;
+///   lastUpdated: number;
 ///   name: string;
 ///   ingredients: [name: string, amount: number, unit: string][];
 ///   category: string | null;
 ///   image: string | null;
+///   isAiGenerated: boolean;
 /// }[];
 /// ```
 #[post("/get-all-recipes", data = "<data>")]
@@ -59,7 +60,6 @@ pub async fn get_all_recipes(mut db: Connection<Db>, user: AuthenticatedUser, da
       rows
         .into_iter()
         .map(|row: SqliteRow| {
-          let id: u32 = get_from_row(&row, "id");
           let uuid: String = get_from_row(&row, "uuid");
           let user_uuid: String = get_from_row(&row, "user_uuid");
           let created_at: u32 = get_from_row(&row, "created_at");
@@ -67,10 +67,11 @@ pub async fn get_all_recipes(mut db: Connection<Db>, user: AuthenticatedUser, da
           let name: String = get_from_row(&row, "name");
           let ingredients: String = get_from_row(&row, "ingredients");
           let ingredients: Vec<(String, f32, IngredientUnit)> = from_str(&ingredients).unwrap();
-          let category: String = get_from_row(&row, "category");
-          let image: String = get_from_row(&row, "image");
-
-          Ok(Recipe::new(id, uuid, user_uuid, created_at, last_updated, name, ingredients, None, Some(category), Some(image)))
+          let instructions: Option<String> = get_from_row(&row, "instructions");
+          let category: Option<String> = get_from_row(&row, "category");
+          let image: Option<String> = get_from_row(&row, "image");
+          let is_ai_generated: u8 = get_from_row(&row, "is_ai_generated");
+          Ok(Recipe::new(uuid, user_uuid, created_at, last_updated, name, ingredients, instructions, category, image, is_ai_generated))
         })
         .collect()
     })

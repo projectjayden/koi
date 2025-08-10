@@ -1,11 +1,11 @@
+use crate::{ guards::auth::AuthenticatedUser, utils::functions::get_unix_seconds };
 use rocket::{ http::Status, serde::{ json::Json, Deserialize } };
-use crate::guards::auth::AuthenticatedUser;
 use rocket_db_pools::Connection;
 use rocket_db_pools::sqlx;
 use crate::utils::db::Db;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct RateInput {
   /// UUID of the store being rated.
   store_uuid: String,
@@ -23,6 +23,7 @@ pub struct RateInput {
 /// **Input**:
 /// ```ts
 /// {
+///   storeUuid: string;
 ///   rating: number;
 ///   description?: string;
 /// }
@@ -41,11 +42,12 @@ pub async fn rate(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<Ra
   let rating: f32 = rating.trunc() / 10.0; // * make sure it only has 1 decimal place
 
   sqlx
-    ::query("INSERT INTO store_reviews (user_uuid, store_uuid, rating, description) VALUES ($1, $2, $3, $4)")
+    ::query("INSERT INTO store_reviews (user_uuid, store_uuid, rating, description, created_at) VALUES ($1, $2, $3, $4, $5)")
     .bind(user.0.uuid)
     .bind(data.0.store_uuid)
     .bind(rating.to_string())
     .bind(data.0.description)
+    .bind(get_unix_seconds() as u32)
     .execute(&mut **db).await
     .unwrap();
 

@@ -1,9 +1,9 @@
 use crate::{ models::stores::{ Item, SerializedItem }, utils::functions::get_from_row };
 use rocket_db_pools::sqlx::{ self, SqliteConnection, sqlite::SqliteRow };
-use rocket::serde::{ Deserialize, Serialize };
+use rocket::serde::Serialize;
 
 #[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct SerializedList {
   /// List UUID.
   pub uuid: String,
@@ -17,11 +17,7 @@ pub struct SerializedList {
   pub items: Vec<SerializedItem>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-#[serde(crate = "rocket::serde")]
 pub struct List {
-  /// Internal list ID, incremented by 1 for each list created.
-  id: u32,
   /// List UUID.
   pub uuid: String,
   /// User UUID of the author of the list.
@@ -34,9 +30,8 @@ pub struct List {
   pub items: Vec<String>,
 }
 impl List {
-  pub fn new(id: u32, uuid: String, user_uuid: String, created_at: u32, last_updated: u32, items: Vec<String>) -> Self {
+  pub fn new(uuid: String, user_uuid: String, created_at: u32, last_updated: u32, items: Vec<String>) -> Self {
     Self {
-      id,
       uuid,
       user_uuid,
       created_at,
@@ -54,7 +49,6 @@ impl List {
         rows
           .into_iter()
           .map(|row: SqliteRow| {
-            let id: u32 = get_from_row(&row, "id");
             let uuid: String = get_from_row(&row, "uuid");
             let name: String = get_from_row(&row, "name");
             let price: f32 = get_from_row(&row, "price");
@@ -63,7 +57,7 @@ impl List {
             let store_uuid: String = get_from_row(&row, "store_uuid");
             let deal_uuid: Option<String> = get_from_row(&row, "deal_uuid");
             let image: Option<String> = get_from_row(&row, "image");
-            Ok(Item::new(id, uuid, name, price, manufacturer, in_stock, store_uuid, deal_uuid, image))
+            Ok(Item::new(uuid, name, price, manufacturer, in_stock, store_uuid, deal_uuid, image))
           })
           .collect()
       })

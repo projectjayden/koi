@@ -1,10 +1,12 @@
-use crate::{ guards::auth::AuthenticatedUser, models::users::Recipe, models::users::recipe::IngredientUnit, utils::functions::get_unix_seconds };
-use rocket::{ http::Status, serde::{ json::{ Json, to_string }, Deserialize } };
 use rocket_db_pools::{ sqlx::{ self, Row, sqlite::SqliteRow }, Connection };
+use crate::guards::{ auth::AuthenticatedUser, json_limit::LimitedJson };
+use rocket::{ http::Status, serde::{ json::to_string, Deserialize } };
+use crate::models::users::{ recipe::IngredientUnit, Recipe };
+use crate::utils::functions::get_unix_seconds;
 use crate::utils::db::Db;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct RecipeInput {
   /// The recipe's name.
   pub name: Option<String>,
@@ -36,7 +38,7 @@ pub struct RecipeInput {
 /// - 401 (recipe not owned)
 /// - 404 (recipe not found)
 #[patch("/edit/<uuid>", data = "<data>")]
-pub async fn edit(mut db: Connection<Db>, user: AuthenticatedUser, uuid: &str, data: Json<RecipeInput>) -> Status {
+pub async fn edit(mut db: Connection<Db>, user: AuthenticatedUser, uuid: &str, data: LimitedJson<RecipeInput>) -> Status {
   let author_uuid: Option<String> = sqlx
     ::query("SELECT user_uuid FROM recipes WHERE uuid = $1")
     .bind(&uuid)

@@ -5,8 +5,7 @@ use rocket_db_pools::sqlx;
 
 /// **Output**:
 /// - `AuthenticatedUser` (success)
-/// - 400 (user not found)
-/// - 401 (no authorization header, token is invalid, or token is revoked)
+/// - 401 (no authorization header, token is invalid, or user not found)
 pub struct AuthenticatedUser(pub User);
 
 #[rocket::async_trait]
@@ -33,7 +32,7 @@ impl<'r> FromRequest<'r> for AuthenticatedUser {
           return Outcome::Success(AuthenticatedUser(user));
         }
         None => {
-          return Outcome::Error((Status::BadRequest, ()));
+          return Outcome::Error((Status::Unauthorized, ()));
         }
       }
     }

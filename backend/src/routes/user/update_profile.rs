@@ -4,7 +4,7 @@ use rocket_db_pools::{ sqlx, Connection };
 use crate::utils::db::Db;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct UpdateProfileInput {
   /// The user's name.
   pub name: Option<String>,

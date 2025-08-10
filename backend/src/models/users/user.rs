@@ -1,6 +1,6 @@
 use crate::{ models::users::{ list::List, recipe::IngredientUnit, Recipe, Review }, utils::functions::get_from_row };
 use rocket_db_pools::sqlx::{ self, Row, SqliteConnection, Error, sqlite::SqliteRow };
-use rocket::serde::{ json::from_str, Deserialize, Serialize };
+use rocket::serde::{ json::from_str, Serialize };
 
 pub enum GetFollowType {
   Followers,
@@ -14,7 +14,7 @@ pub enum GetRecipesType {
 }
 
 #[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct MiniUser {
   /// User UUID.
   pub uuid: String,
@@ -57,11 +57,19 @@ impl MiniUser {
     }
   }
 
-  pub async fn get_recipes(&self, db: &mut SqliteConnection, limit: u32, offset: u32) -> (usize, Vec<Recipe>) {
-    let total_recipes: (u32,) = sqlx::query_as("SELECT COUNT(*) FROM recipes WHERE user_uuid = $1").bind(&self.uuid).fetch_one(&mut *db).await.unwrap();
+  pub async fn get_recipes(&self, db: &mut SqliteConnection, get_ai_generated: Option<bool>, limit: u32, offset: u32) -> (usize, Vec<Recipe>) {
+    let ai_generated_query: &'static str = match get_ai_generated {
+      Some(option) =>
+        match option {
+          true => " AND is_ai_generated = 1",
+          false => " AND is_ai_generated = 0",
+        }
+      None => "",
+    };
+    let total_recipes: (u32,) = sqlx::query_as(&format!("SELECT COUNT(*) FROM recipes WHERE user_uuid = $1{}", ai_generated_query)).bind(&self.uuid).fetch_one(&mut *db).await.unwrap();
 
     let recipes: Vec<Recipe> = sqlx
-      ::query("SELECT * FROM recipes WHERE user_uuid = $1 LIMIT $2 OFFSET $3")
+      ::query(&format!("SELECT * FROM recipes WHERE user_uuid = $1{} LIMIT $2 OFFSET $3", ai_generated_query))
       .bind(&self.uuid)
       .bind(limit)
       .bind(offset)
@@ -70,7 +78,6 @@ impl MiniUser {
         rows
           .into_iter()
           .map(|row: SqliteRow| {
-            let id: u32 = get_from_row(&row, "id");
             let uuid: String = get_from_row(&row, "uuid");
             let user_uuid: String = get_from_row(&row, "user_uuid");
             let created_at: u32 = get_from_row(&row, "created_at");
@@ -81,7 +88,8 @@ impl MiniUser {
             let instructions: Option<String> = get_from_row(&row, "instructions");
             let category: Option<String> = get_from_row(&row, "category");
             let image: Option<String> = get_from_row(&row, "image");
-            Ok(Recipe::new(id, uuid, user_uuid, created_at, last_updated, name, ingredients, instructions, category, image))
+            let is_ai_generated: u8 = get_from_row(&row, "is_ai_generated");
+            Ok(Recipe::new(uuid, user_uuid, created_at, last_updated, name, ingredients, instructions, category, image, is_ai_generated))
           })
           .collect()
       })
@@ -92,7 +100,7 @@ impl MiniUser {
 }
 
 #[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct SerializedUser {
   /// User UUID.
   pub uuid: String,
@@ -122,11 +130,7 @@ pub struct SerializedUser {
   pub following: u32,
 }
 
-#[derive(Deserialize, Serialize)]
-#[serde(crate = "rocket::serde")]
 pub struct User {
-  /// Internal user ID, incremented by 1 for each user created.
-  id: u32,
   /// User UUID.
   pub uuid: String,
   /// User's name.
@@ -160,7 +164,6 @@ impl User {
       .bind(&uuid)
       .fetch_one(db).await
       .and_then(|row: SqliteRow| {
-        let id: u32 = get_from_row(&row, "id");
         let name: String = get_from_row(&row, "name");
         let bio: Option<String> = get_from_row(&row, "bio");
         let email: String = get_from_row(&row, "email");
@@ -174,7 +177,6 @@ impl User {
         let preferences: Option<String> = get_from_row(&row, "preferences");
         let preferences: Vec<String> = from_str(&preferences.unwrap_or("[]".to_string())).unwrap();
         Ok(Self {
-          id,
           uuid,
           name,
           bio,
@@ -228,14 +230,13 @@ impl User {
           rows
             .into_iter()
             .map(|row: SqliteRow| {
-              let id: u32 = get_from_row(&row, "id");
               let user_uuid: String = get_from_row(&row, "user_uuid");
               let store_uuid: String = get_from_row(&row, "store_uuid");
               let created_at: u32 = get_from_row(&row, "created_at");
               let rating: f32 = get_from_row(&row, "rating");
               let description: Option<String> = get_from_row(&row, "description");
 
-              Ok(Review::new(id, user_uuid, store_uuid, created_at, rating, description))
+              Ok(Review::new(user_uuid, store_uuid, created_at, rating, description))
             })
             .collect()
         ).unwrap()
@@ -316,7 +317,6 @@ impl User {
           rows
             .into_iter()
             .map(|row: SqliteRow| {
-              let id: u32 = get_from_row(&row, "id");
               let uuid: String = get_from_row(&row, "uuid");
               let user_uuid: String = get_from_row(&row, "user_uuid");
               let created_at: u32 = get_from_row(&row, "created_at");
@@ -327,8 +327,8 @@ impl User {
               let instructions: Option<String> = get_from_row(&row, "instructions");
               let category: Option<String> = get_from_row(&row, "category");
               let image: Option<String> = get_from_row(&row, "image");
-
-              Ok(Recipe::new(id, uuid, user_uuid, created_at, last_updated, name, ingredients, instructions, category, image))
+              let is_ai_generated: u8 = get_from_row(&row, "is_ai_generated");
+              Ok(Recipe::new(uuid, user_uuid, created_at, last_updated, name, ingredients, instructions, category, image, is_ai_generated))
             })
             .collect()
         ).unwrap()
@@ -363,7 +363,6 @@ impl User {
           rows
             .into_iter()
             .map(|row: SqliteRow| {
-              let id: u32 = get_from_row(&row, "id");
               let uuid: String = get_from_row(&row, "uuid");
               let user_uuid: String = get_from_row(&row, "user_uuid");
               let created_at: u32 = get_from_row(&row, "created_at");
@@ -374,8 +373,8 @@ impl User {
               let instructions: Option<String> = get_from_row(&row, "instructions");
               let category: Option<String> = get_from_row(&row, "category");
               let image: Option<String> = get_from_row(&row, "image");
-
-              Ok(Recipe::new(id, uuid, user_uuid, created_at, last_updated, name, ingredients, instructions, category, image))
+              let is_ai_generated: u8 = get_from_row(&row, "is_ai_generated");
+              Ok(Recipe::new(uuid, user_uuid, created_at, last_updated, name, ingredients, instructions, category, image, is_ai_generated))
             })
             .collect()
         ).unwrap()
@@ -400,7 +399,6 @@ impl User {
           rows
             .into_iter()
             .map(|row: SqliteRow| {
-              let id: u32 = get_from_row(&row, "id");
               let uuid: String = get_from_row(&row, "uuid");
               let user_uuid: String = get_from_row(&row, "user_uuid");
               let created_at: u32 = get_from_row(&row, "created_at");
@@ -408,7 +406,7 @@ impl User {
               let items: String = get_from_row(&row, "items");
               let items: Vec<String> = from_str(&items).unwrap();
 
-              Ok(List::new(id, uuid, user_uuid, created_at, last_updated, items))
+              Ok(List::new(uuid, user_uuid, created_at, last_updated, items))
             })
             .collect()
         ).unwrap()

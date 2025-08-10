@@ -1,12 +1,12 @@
-use crate::models::stores::{ Store, SerializedStore, Item, SerializedItem, SerializedDeal };
+use crate::models::stores::{ Store, Item, SerializedItem, Deal };
 use crate::{ guards::auth::AuthenticatedUser, utils::db::Db };
-use crate::models::users::{ SerializedReview, Review };
 use rocket::{ http::Status, serde::json::Json };
 use rocket::serde::{ Deserialize, Serialize };
+use crate::models::users::Review;
 use rocket_db_pools::Connection;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct LookupInput {
   /// GPS coordinate of the store.
   ///
@@ -35,12 +35,12 @@ pub struct LookupInput {
 }
 
 #[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct LookupOutput {
-  pub store: Option<SerializedStore>,
+  pub store: Option<Store>,
   pub items: Option<Vec<SerializedItem>>,
-  pub deals: Option<Vec<SerializedDeal>>,
-  pub reviews: Option<Vec<SerializedReview>>,
+  pub deals: Option<Vec<Deal>>,
+  pub reviews: Option<Vec<Review>>,
   /// Total number of reviews.
   ///
   /// Used for pagination.
@@ -58,17 +58,17 @@ pub struct LookupOutput {
 /// ```ts
 /// {
 ///  geolocation: `${number}, ${number}`;
-///  get_store_info: boolean;
-///  get_items: boolean;
-///  get_deals: boolean;
-///  get_reviews: false;
+///  getStoreInfo: boolean;
+///  getItems: boolean;
+///  getDeals: boolean;
+///  getReviews: false;
 /// } | {
-///  get_store_info: boolean;
-///  get_items: boolean;
-///  get_deals: boolean;
-///  get_reviews: true;
-///  review_limit: number;
-///  review_offset: number;
+///  getStoreInfo: boolean;
+///  getItems: boolean;
+///  getDeals: boolean;
+///  getReviews: true;
+///  reviewLimit: number;
+///  reviewOffset: number;
 /// }
 /// ```
 ///
@@ -83,36 +83,46 @@ pub struct LookupOutput {
 ///     longitude: number;
 ///     phone: string | null;
 ///     email: string | null;
-///     open_hours: [[string, string], [string, string], ...x5] | null;
+///     openHours: [[string, string], [string, string], ...x5] | null;
 ///   },
 ///   items?: {
 ///     uuid: string;
 ///     name: string;
 ///     price: number;
 ///     manufacturer: string | null;
-///     in_stock: boolean;
-///     store_uuid: string;
-///     deal_uuid: string | null;
+///     inStock: boolean;
+///     storeUuid: string;
+///     deal: {
+///       uuid: string;
+///       storeUuid: string;
+///       name: string;
+///       description: string | null;
+///       startDate: number;
+///       endDate: number;
+///       type: number;
+///       value1: number;
+///       value2: number | null;
+///     } | null;
 ///     image: string | null;
 ///   }[],
 ///   deals?: {
 ///     uuid: string;
-///     store_uuid: string;
+///     storeUuid: string;
 ///     name: string;
 ///     description: string | null;
-///     start_date: number;
-///     end_date: number;
+///     startDate: number;
+///     endDate: number;
 ///     type: number;
-///     value_1: number;
-///     value_2: number | null;
+///     value1: number;
+///     value2: number | null;
 ///   }[],
 ///   reviews?: {
-///     user_uuid: string;
-///     store_uuid: string;
+///     userUuid: string;
+///     storeUuid: string;
 ///     rating: number;
 ///     description: string;
 ///   }[],
-///   total_reviews?: number;
+///   totalReviews?: number;
 /// }
 /// ```
 #[post("/lookup", data = "<data>")]
@@ -129,7 +139,6 @@ pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, data: Json
     }
   };
 
-  println!("latitude: {}, longitude: {}", latitude, longitude);
   let store: Option<Store> = Store::from_geolocation(&mut **db, latitude, longitude).await;
   if let None = store {
     return Err(Status::NotFound);
@@ -149,31 +158,11 @@ pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, data: Json
     None
   };
 
-  let deals: Option<Vec<SerializedDeal>> = if data.0.get_deals {
-    Some(
-      (&store)
-        .get_deals(&mut **db).await
-        .into_iter()
-        .map(|deal| deal.serialize())
-        .collect()
-    )
-  } else {
-    None
-  };
+  let deals: Option<Vec<Deal>> = if data.0.get_deals { Some((&store).get_deals(&mut **db).await) } else { None };
 
   let review_data: Option<(usize, Vec<Review>)> = if data.0.get_reviews { Some((&store).get_reviews(&mut **db, data.0.review_limit.unwrap(), data.0.review_offset.unwrap()).await) } else { None };
   let (total_reviews, reviews) = match review_data {
-    Some((size, reviews)) => {
-      (
-        Some(size),
-        Some(
-          reviews
-            .into_iter()
-            .map(|review: Review| review.serialize())
-            .collect()
-        ),
-      )
-    }
+    Some((size, reviews)) => { (Some(size), Some(reviews)) }
     None => {
       if data.0.get_reviews {
         return Err(Status::BadRequest);
@@ -182,7 +171,7 @@ pub async fn lookup(mut db: Connection<Db>, _user: AuthenticatedUser, data: Json
     }
   };
 
-  let store: Option<SerializedStore> = if data.0.get_store_info { Some(store.serialize()) } else { None };
+  let store: Option<Store> = if data.0.get_store_info { Some(store) } else { None };
 
   Ok(
     Json(LookupOutput {

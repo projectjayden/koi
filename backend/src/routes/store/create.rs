@@ -4,8 +4,8 @@ use crate::guards::auth::AuthenticatedUser;
 use crate::utils::db::Db;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
-pub struct CreateData {
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
+pub struct CreateInput {
   /// Name of the store.
   name: String,
   /// Description of the store.
@@ -49,16 +49,21 @@ pub struct CreateData {
 ///   geolocation: `${number}, ${number}`;
 ///   phone?: string;
 ///   email?: string;
-///   open_hours?: [[string, string], [string, string], ...x5];
+///   openHours?: [[string, string], [string, string], ...x5];
 /// }
 /// ```
 ///
 /// **Output**:
 /// - `string` - The store's UUID
 /// - 400 (invalid phone number, email, or open hours)
+/// - 403 (user is already associated with a store)
 /// - 500 (invalid geolocation)
 #[post("/create", data = "<data>")]
-pub async fn create(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<CreateData>) -> Result<String, Status> {
+pub async fn create(mut db: Connection<Db>, user: AuthenticatedUser, data: Json<CreateInput>) -> Result<String, Status> {
+  if user.0.store_uuid.is_some() {
+    return Err(Status::Forbidden);
+  }
+  
   if data.0.phone.is_some() && data.0.phone.clone().unwrap().len() != 10 {
     return Err(Status::BadRequest);
   }

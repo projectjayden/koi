@@ -1,13 +1,13 @@
 use crate::guards::{ auth::AuthenticatedUser, store_auth::AuthenticatedStore };
-use rocket::http::Status;
 use rocket_db_pools::{ sqlx, Connection };
 use rocket::serde::Deserialize;
 use rocket::serde::json::Json;
 use crate::utils::db::Db;
+use rocket::http::Status;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct CreateDealInput {
   /// Name of the deal.
   name: String,
@@ -49,11 +49,11 @@ pub struct CreateDealInput {
 /// {
 ///   name: string;
 ///   description?: string;
-///   start_date: number;
-///   end_date: number;
+///   startDate: number;
+///   endDate: number;
 ///   type: number;
-///   value_1: number;
-///   value_2?: number;
+///   value1: number;
+///   value2?: number;
 ///   items?: string[];
 /// }
 /// ```

@@ -23,6 +23,11 @@ pub fn not_found() -> &'static str {
   "404 - Not found"
 }
 
+#[catch(413)]
+pub fn payload_too_large() -> &'static str {
+  "413 - Gyatt damn that payload is huge"
+}
+
 #[catch(418)]
 pub fn im_a_teapot() -> &'static str {
   "418 - Clown detected"

@@ -4,7 +4,7 @@ use rocket_db_pools::Connection;
 use crate::utils::db::Db;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct FameInput {
   /// Type of data to fetch.
   ///
@@ -45,7 +45,7 @@ pub struct FameInput {
 ///     uuid: string;
 ///     name: string;
 ///     bio: string | null;
-///     is_subscribed: boolean;
+///     isSubscribed: boolean;
 ///     followers: number;
 ///     following: number;
 ///   }[];

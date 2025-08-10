@@ -4,7 +4,7 @@ use rocket_db_pools::Connection;
 use crate::utils::db::Db;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct ListInput {
   /// Number of lists to get.
   ///
@@ -35,17 +35,27 @@ pub struct ListInput {
 ///   number; // total recipes
 ///   {
 ///     uuid: number;
-///     user_uuid: number;
-///     created_at: number;
-///     last_updated: number;
+///     userUuid: number;
+///     createdAt: number;
+///     lastUpdated: number;
 ///     items: {
 ///       uuid: string;
 ///       name: string;
 ///       price: number;
 ///       manfuacturer: string | null;
-///       in_stock: boolean;
-///       store_uuid: string;
-///       deal_uuid: string | null;
+///       inStock: boolean;
+///       storeUuid: string;
+///       deal: {
+///         uuid: string;
+///         storeUuid: string;
+///         name: string;
+///         description: string | null;
+///         startDate: number;
+///         endDate: number;
+///         type: number;
+///         value1: number;
+///         value2: number | null;
+///       } | null;
 ///       image: string | null;
 ///     }[];
 ///   }[];
@@ -57,7 +67,6 @@ pub async fn get_lists(mut db: Connection<Db>, user: AuthenticatedUser, data: Js
   let offset: u32 = data.0.offset.unwrap_or(0);
 
   let (total_lists, lists) = user.0.get_lists(&mut db, limit, offset).await;
-  println!("lists: {:#?}", lists);
 
   let mut serialized_lists: Vec<SerializedList> = vec![];
   for list in lists {

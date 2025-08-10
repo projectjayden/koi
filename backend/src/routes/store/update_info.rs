@@ -1,10 +1,10 @@
-use rocket::{ http::Status, serde::{ json::Json, Deserialize } };
 use crate::guards::{ auth::AuthenticatedUser, store_auth::AuthenticatedStore };
+use rocket::{ http::Status, serde::{ json::Json, Deserialize } };
 use rocket_db_pools::{ sqlx, Connection };
 use crate::utils::db::Db;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct UpdateInfoInput {
   /// Name of the store.
   name: Option<String>,

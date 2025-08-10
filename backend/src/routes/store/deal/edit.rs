@@ -4,7 +4,7 @@ use rocket::{ http::Status, serde::{ json::Json, Deserialize } };
 use crate::utils::db::Db;
 
 #[derive(Deserialize)]
-#[serde(crate = "rocket::serde")]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct CreateDealInput {
   /// Name of the deal.
   name: Option<String>,
