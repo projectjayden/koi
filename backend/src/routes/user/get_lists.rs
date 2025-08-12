@@ -32,32 +32,25 @@ pub struct ListInput {
 /// **Output**:
 /// ```ts
 /// [
-///   number; // total recipes
+///   number; // total lists
 ///   {
 ///     uuid: number;
 ///     userUuid: number;
 ///     createdAt: number;
 ///     lastUpdated: number;
-///     items: {
-///       uuid: string;
-///       name: string;
-///       price: number;
-///       manfuacturer: string | null;
-///       inStock: boolean;
-///       storeUuid: string;
-///       deal: {
+///     items: [
+///       number, // quantity
+///       {
 ///         uuid: string;
-///         storeUuid: string;
 ///         name: string;
-///         description: string | null;
-///         startDate: number;
-///         endDate: number;
-///         type: number;
-///         value1: number;
-///         value2: number | null;
-///       } | null;
-///       image: string | null;
-///     }[];
+///         price: number;
+///         manfuacturer: string | null;
+///         inStock: boolean;
+///         storeUuid: string;
+///         deal: { /* deal object */ } | null;
+///         image: string | null;
+///       }
+///     ][];
 ///   }[];
 /// ]
 /// ```

@@ -1,5 +1,5 @@
 use crate::{ models::users::{ list::List, recipe::IngredientUnit, Recipe, Review }, utils::functions::get_from_row };
-use rocket_db_pools::sqlx::{ self, Row, SqliteConnection, Error, sqlite::SqliteRow };
+use rocket_db_pools::sqlx::{ self, Row, query::Query, SqliteConnection, Error, sqlite::SqliteRow };
 use rocket::serde::{ json::from_str, Serialize };
 
 pub enum GetFollowType {
@@ -354,9 +354,14 @@ impl User {
       })
       .unwrap();
 
-    sqlx
-      ::query("SELECT * FROM recipes WHERE uuid IN ($1)")
-      .bind(&recipe_uuids.join(", "))
+    let query_string: Vec<String> = (0..recipe_uuids.len()).map(|i: usize| format!("${}", i + 2)).collect();
+
+    let mut query: Query<'_, _, _> = sqlx::query("SELECT * FROM recipes WHERE uuid IN ($1)").bind(query_string.join(", "));
+    for uuid in recipe_uuids.iter() {
+      query = query.bind(uuid);
+    }
+
+    query
       .fetch_all(&mut *db).await
       .and_then(|rows: Vec<SqliteRow>| {
         Ok::<Result<Vec<Recipe>, Error>, Error>(
@@ -404,7 +409,7 @@ impl User {
               let created_at: u32 = get_from_row(&row, "created_at");
               let last_updated: u32 = row.try_get::<u32, _>("last_updated").unwrap();
               let items: String = get_from_row(&row, "items");
-              let items: Vec<String> = from_str(&items).unwrap();
+              let items: Vec<(u8, String)> = from_str(&items).unwrap();
 
               Ok(List::new(uuid, user_uuid, created_at, last_updated, items))
             })

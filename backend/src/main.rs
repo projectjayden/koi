@@ -32,17 +32,19 @@ fn rocket() -> _ {
     .mount(
       "/user",
       routes![
-        routes::user::GetFame,
+        routes::user::GetRandomUsers,
+        routes::user::UpdateProfile,
+        routes::user::GetAllRecipes,
+        routes::user::SearchItems,
+        routes::user::SearchUsers,
         routes::user::GetRecipes,
         routes::user::GetReviews,
-        routes::user::GetLists,
-        routes::user::Lookup,
-        routes::user::Rate,
-        routes::user::UpdateProfile,
-        routes::user::Follow,
         routes::user::Unfollow,
-        routes::user::SearchItems,
-        routes::user::GetAllRecipes
+        routes::user::GetLists,
+        routes::user::GetFame,
+        routes::user::Follow,
+        routes::user::Lookup,
+        routes::user::Rate
       ]
     )
     .mount("/user/recipe", routes![routes::user::recipe::LikeRecipe, routes::user::recipe::UnlikeRecipe, routes::user::recipe::Create, routes::user::recipe::Delete, routes::user::recipe::Edit])

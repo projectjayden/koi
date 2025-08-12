@@ -1,6 +1,6 @@
 use crate::guards::{ auth::AuthenticatedUser, store_auth::AuthenticatedStore };
+use rocket_db_pools::{ sqlx::{ self, query::Query }, Connection };
 use rocket::{ http::Status, serde::{ json::Json, Deserialize } };
-use rocket_db_pools::{ sqlx, Connection };
 use crate::utils::db::Db;
 
 #[derive(Deserialize)]
@@ -70,7 +70,7 @@ pub async fn update_info(mut db: Connection<Db>, _user: AuthenticatedUser, store
     "UPDATE stores SET name = $1, description = $2, latitude = $3, longitude = $4, phone = $5, email = $6 WHERE uuid = $7"
   };
 
-  let mut query: sqlx::query::Query<'_, _, _> = sqlx::query(query_string).bind(name).bind(description).bind(latitude).bind(longitude).bind(phone).bind(email).bind(store.0.uuid);
+  let mut query: Query<'_, _, _> = sqlx::query(query_string).bind(name).bind(description).bind(latitude).bind(longitude).bind(phone).bind(email).bind(store.0.uuid);
 
   if open_hours.is_some() {
     for day in open_hours.unwrap() {

@@ -1,5 +1,5 @@
+use rocket_db_pools::sqlx::{ self, sqlite::SqliteRow, SqliteConnection };
 use crate::{ models::stores::Deal, utils::functions::get_from_row };
-use rocket_db_pools::sqlx::{ self, SqliteConnection };
 use rocket::serde::Serialize;
 
 #[derive(Serialize)]
@@ -82,7 +82,7 @@ impl Item {
       ::query("SELECT * FROM items WHERE uuid = $1")
       .bind(&uuid)
       .fetch_one(&mut *db).await
-      .and_then(|row: sqlx::sqlite::SqliteRow| {
+      .and_then(|row: SqliteRow| {
         Ok(
           Self::new(
             get_from_row(&row, "uuid"),

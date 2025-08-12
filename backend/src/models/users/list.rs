@@ -14,7 +14,9 @@ pub struct SerializedList {
   /// Unix timestamp of when the list was last updated, in seconds.
   pub last_updated: u32,
   /// Array of items.
-  pub items: Vec<SerializedItem>,
+  ///
+  /// (quantity, item)
+  pub items: Vec<(u8, SerializedItem)>,
 }
 
 pub struct List {
@@ -27,10 +29,12 @@ pub struct List {
   /// Unix timestamp of when the list was last updated, in seconds.
   pub last_updated: u32,
   /// Array of item UUIDs.
-  pub items: Vec<String>,
+  ///
+  /// (quantity, item UUID)
+  pub items: Vec<(u8, String)>,
 }
 impl List {
-  pub fn new(uuid: String, user_uuid: String, created_at: u32, last_updated: u32, items: Vec<String>) -> Self {
+  pub fn new(uuid: String, user_uuid: String, created_at: u32, last_updated: u32, items: Vec<(u8, String)>) -> Self {
     Self {
       uuid,
       user_uuid,
@@ -41,11 +45,11 @@ impl List {
   }
 
   pub async fn serialize(&self, db: &mut SqliteConnection) -> SerializedList {
-    // * using .bind doesnt query correctly for some reason ??
-    let items: Vec<Item> = sqlx
-      ::query(&format!("SELECT * FROM items WHERE uuid IN (\"{}\")", self.items.join("\", \"")))
+    let query: String = format!("SELECT * FROM items WHERE uuid IN (\"{}\")", self.items.iter().map(|item| item.1.clone()).collect::<Vec<String>>().join("\", \""));
+
+    let items: Vec<Item> = sqlx::query(&query)
       .fetch_all(&mut *db).await
-      .and_then(|rows: Vec<sqlx::sqlite::SqliteRow>| {
+      .and_then(|rows: Vec<SqliteRow>| {
         rows
           .into_iter()
           .map(|row: SqliteRow| {
@@ -63,9 +67,9 @@ impl List {
       })
       .unwrap();
 
-    let mut serialized_items: Vec<SerializedItem> = vec![];
-    for item in items {
-      serialized_items.push(item.serialize(&mut *db).await);
+    let mut serialized_items: Vec<(u8, SerializedItem)> = vec![];
+    for (i, item) in items.into_iter().enumerate() {
+      serialized_items.push((self.items[i].0, item.serialize(&mut *db).await));
     }
 
     SerializedList {

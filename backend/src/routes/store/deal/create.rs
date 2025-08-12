@@ -1,5 +1,5 @@
 use crate::guards::{ auth::AuthenticatedUser, store_auth::AuthenticatedStore };
-use rocket_db_pools::{ sqlx, Connection };
+use rocket_db_pools::{ sqlx::{ self, query::Query }, Connection };
 use rocket::serde::Deserialize;
 use rocket::serde::json::Json;
 use crate::utils::db::Db;
@@ -86,10 +86,9 @@ pub async fn create(mut db: Connection<Db>, _user: AuthenticatedUser, store: Aut
     .unwrap();
 
   if let Some(items) = &data.items {
-    let query_string: Vec<String> = (0..items.len()).map(|i| format!("${}", i + 2)).collect();
-    let query_string: String = format!("UPDATE items SET deal_uuid = $1 WHERE uuid IN ({})", query_string.join(", "));
+    let query_string: Vec<String> = (0..items.len()).map(|i: usize| format!("${}", i + 3)).collect();
 
-    let mut query = sqlx::query(&query_string).bind(&uuid);
+    let mut query: Query<'_, _, _> = sqlx::query("UPDATE items SET deal_uuid = $1 WHERE uuid IN ($2)").bind(&uuid).bind(query_string.join(", "));
     for item in items {
       query = query.bind(item);
     }
