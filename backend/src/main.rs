@@ -37,6 +37,7 @@ fn rocket() -> _ {
         routes::user::GetAllRecipes,
         routes::user::SearchItems,
         routes::user::SearchUsers,
+        routes::user::IsFollowing,
         routes::user::GetRecipes,
         routes::user::GetReviews,
         routes::user::Unfollow,

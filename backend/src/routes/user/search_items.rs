@@ -65,13 +65,15 @@ pub struct SearchItemInput {
 /// **Output**:
 /// ```ts
 /// [
-///   number; // total reviews
+///   number; // total items
 ///   {
 ///     uuid: number;
-///     userUuid: number;
 ///     name: string;
-///     ingredients: [name: string, amount: number, unit: string][];
-///     category: string | null;
+///     price: number;
+///     manfuacturer: string | null;
+///     inStock: boolean;
+///     storeUuid: string;
+///     deal: { /* Deal object */ } | null;
 ///     image: string | null;
 ///   }[];
 /// ]
